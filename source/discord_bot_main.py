@@ -2,7 +2,7 @@
 
 # ---standard library---
 import logging
-from logging import DEBUG, INFO, Logger, getLogger
+from logging import INFO, getLogger
 from pathlib import Path
 
 # ---third party library---
@@ -12,6 +12,64 @@ from discord.ext import commands
 # ---local library---
 from application_services import ApplicationServices
 from setting import Settings
+
+
+LOG_FORMAT = (
+    '[ %(levelname)-8s] %(asctime)s | '
+    '%(name)-16s %(funcName)-24s | %(message)s'
+)
+LOG_DATE_FORMAT = '%Y-%m-%d %H:%M:%S'
+FILE_LOGGERS = ('discord', __name__, 'youtubemodule')
+
+
+def configure_logging(log_path):
+    """Configure application file logging once and return its handler."""
+    logging.basicConfig(
+        level=INFO,
+        format=LOG_FORMAT,
+        datefmt=LOG_DATE_FORMAT,
+    )
+
+    log_path = Path(log_path)
+    log_path.mkdir(parents=True, exist_ok=True)
+    filename = (log_path / 'discord_bot_main.log').resolve()
+    loggers = [getLogger(name) for name in FILE_LOGGERS]
+
+    matching_handlers = []
+    for logger in loggers:
+        for handler in logger.handlers:
+            if (
+                isinstance(handler, logging.FileHandler)
+                and Path(handler.baseFilename).resolve() == filename
+                and handler not in matching_handlers
+            ):
+                matching_handlers.append(handler)
+
+    if matching_handlers:
+        handler = matching_handlers[0]
+    else:
+        handler = logging.FileHandler(
+            filename=filename,
+            encoding='utf-8',
+        )
+
+    handler.setLevel(INFO)
+    handler.setFormatter(
+        logging.Formatter(LOG_FORMAT, datefmt=LOG_DATE_FORMAT),
+    )
+
+    for logger in loggers:
+        logger.setLevel(INFO)
+        for duplicate in tuple(logger.handlers):
+            if (
+                duplicate is not handler
+                and isinstance(duplicate, logging.FileHandler)
+                and Path(duplicate.baseFilename).resolve() == filename
+            ):
+                logger.removeHandler(duplicate)
+        if handler not in logger.handlers:
+            logger.addHandler(handler)
+    return handler
 
 
 class MyBot(commands.Bot):
@@ -49,22 +107,7 @@ class MyBot(commands.Bot):
 
 def main(settings=None):
     settings = settings or Settings()
-    logging.basicConfig(
-        level=INFO,
-        format='[ %(levelname)-8s] %(asctime)s | %(name)-16s %(funcName)-16s| %(message)s',
-        datefmt='%Y-%m-%d %H:%M:%S'
-    )
-
-    log_path = Path(settings.LOG_PATH)
-    log_path.mkdir(parents=True, exist_ok=True)
-    fh = logging.FileHandler(filename=log_path / 'discord_bot_main.log', encoding='utf-8')
-    fh.setLevel=INFO
-    fh.setFormatter(logging.Formatter('[ %(levelname)-8s] %(asctime)s | %(name)-16s %(funcName)-24s | %(message)s', datefmt='%Y-%m-%d %H:%M:%S'))
-
-    dlogger = getLogger('discord')
-    dlogger.addHandler(fh)
-    logger = getLogger(__name__)
-    logger.addHandler(fh)
+    configure_logging(settings.LOG_PATH)
 
     services = ApplicationServices.from_settings(settings)
     bot = MyBot(
@@ -73,8 +116,6 @@ def main(settings=None):
         services=services,
     )
     bot.run(settings.DISCORD_KEY.get_secret_value())
-    logger2 = getLogger('youtubemodule')
-    logger2.addHandler(fh)
 
 
 if __name__ == '__main__':
