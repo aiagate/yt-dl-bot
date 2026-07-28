@@ -9,7 +9,10 @@ from discord.ext import commands
 
 # ---local library---
 from cancellation import to_thread_cancellable
-from url_validation import validate_service_url
+from cogs.command_arguments import (
+    YoutubeURL,
+    handle_url_argument_error,
+)
 
 
 class YoutubeCog(commands.Cog):
@@ -19,20 +22,13 @@ class YoutubeCog(commands.Cog):
         self.download_service = bot.services.youtube_download
         self.highlight_service = bot.services.youtube_highlight
 
-    @staticmethod
-    def parse_url(url):
-        return validate_service_url(url, 'youtube')
-
     @commands.group(name='youtube')
     async def youtube_cog(self, ctx):
         if ctx.invoked_subcommand is None:
             await ctx.send('Error: missing option')
 
-    @youtube_cog.command(name='download')
-    async def download_video(self, ctx, *args, **kwargs):
-        # url = args[0]
-        url = self.parse_url(args[0])
-
+    @youtube_cog.command(name='download', ignore_extra=False)
+    async def download_video(self, ctx, url: YoutubeURL):
         text = await asyncio.to_thread(self.download_service.check, url)
 
         for t in text.split('\n'):
@@ -53,12 +49,16 @@ class YoutubeCog(commands.Cog):
 
     @download_video.error
     async def download_video_error(self, ctx, error):
+        if await handle_url_argument_error(
+            ctx,
+            error,
+            usage='youtube download <url>',
+        ):
+            return
         await ctx.invoke(self.bot.get_command('send_error_log'), error)
 
-    @youtube_cog.command(name='highlight')
-    async def get_highlight(self, ctx, *args, **kwargs):
-        url = self.parse_url(args[0])
-
+    @youtube_cog.command(name='highlight', ignore_extra=False)
+    async def get_highlight(self, ctx, url: YoutubeURL):
         await ctx.reply('Starting get highlight...')
 
         result = await asyncio.to_thread(
@@ -96,6 +96,12 @@ class YoutubeCog(commands.Cog):
 
     @get_highlight.error
     async def get_highlight_error(self, ctx, error):
+        if await handle_url_argument_error(
+            ctx,
+            error,
+            usage='youtube highlight <url>',
+        ):
+            return
         await ctx.invoke(self.bot.get_command('send_error_log'), error)
 
 
