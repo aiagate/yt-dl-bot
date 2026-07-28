@@ -1,8 +1,6 @@
 #! .venv/bin/python
 
 # ---standard library---
-import sqlite3
-import traceback
 import logging
 from logging import DEBUG, INFO, Logger, getLogger
 import os
@@ -12,7 +10,6 @@ import discord
 from discord.ext import commands
 
 # ---local library---
-from db_connect import DatabaseConnect
 import property
 
 
@@ -64,4 +61,3 @@ if __name__ == '__main__':
     bot.run(property.DISCORD_KEY)
     logger2 = getLogger('youtubemodule')
     logger2.addHandler(fh)
-

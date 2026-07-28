@@ -47,12 +47,8 @@ class MainCog(commands.Cog):
                 elif message.channel.id == property.DOWNLOAD_CHANNEL:
                     message.content = '!youtube download ' + message.content
             elif self.get_domain(self, message.content) == 'www.twitch.tv':
-                if message.channel.id == property.HIGHLIGHT_CHANNEL:
-                    message.content = '!twitch highlight ' + message.content
-                elif message.channel.id == property.DOWNLOAD_CHANNEL:
+                if message.channel.id == property.DOWNLOAD_CHANNEL:
                     message.content = '!twitch download ' + message.content
-        elif message.channel.id == property.SEARCH_CHANNEL:
-            message.content = '!youtube search whitetails ' + message.content
         else:
             return
 

@@ -8,15 +8,9 @@ import os
 import shutil
 
 # ---third party library---
-import ffmpeg
-# import youtube_dl
 import yt_dlp
 
 # ---local library---
-from db_connect import DatabaseConnect
-from utils import (
-    OverlappingError
-)
 import property
 
 
@@ -25,37 +19,6 @@ class YoutubeModule():
         pass
 
     def data_check(self, url, ydl_ops={}):
-
-        #ダウンロード進行中の動画と同じ動画のダウンロードを制限
-        '''
-        ライブ配信かアーカイブかによって制限の解除を行うように改良予定
-        '''
-        # with DatabaseConnect(property.DOWNLOAD_DATA) as db:
-        #     try:
-        #         sql = 'select id from download where id = ?'
-        #         result = db.execute(sql, self.get_videoid(url))
-        #         if result.fetchall() != []:
-        #             message = 'This Video is being downloaded.'
-        #             raise OverlappingError(message)
-        #     except Exception as e:
-        #         raise e
-        
-        #重複した動画のダウンロードを制限
-        '''
-        ライブ配信とそのアーカイブの場合は制限しないように改良予定
-        '''
-        '''
-        with DatabaseConnect(property.DOWNLOAD_DATA) as db:
-            try:
-                sql = 'select id from archive where id = ?'
-                result = db.execute(sql, self.get_videoid(url))
-                if result.fetchall() != []:
-                    message = 'Error: This video has already been downloaded.'
-                    raise OverlappingError(message)
-            except Exception as e:
-                raise e
-        '''
-
         #URLから動画情報を抽出
         try:
             info = self.get_info(url=url)
@@ -65,7 +28,6 @@ class YoutubeModule():
             message = 'Video title : ' + title + '\n' \
                       'Download start...'
             return message
-        # except youtube_dl.utils.DownloadError as e:
         except yt_dlp.utils.DownloadError as e:
             error = str(e.exc_info[1])
             if 'This live event will begin in' in error:
@@ -84,18 +46,6 @@ class YoutubeModule():
     def download_video(self, url):
         is_download = False
 
-        #ダウンロード進行中のデータテーブルに動画情報を登録
-        '''
-        with DatabaseConnect(property.DOWNLOAD_DATA) as db:
-            try:
-                now = datetime.datetime.now()
-                date = now.strftime('%Y/%m/%d %H:%M:%S')
-                sql = 'insert into download values(?,?,?,?)'
-                result = db.execute(sql, self.get_videoid(url), url, date, None) #主キーにIDを使用するのをやめる
-            except Exception as e:
-                raise e
-        '''
-
         #ライブ配信の場合、ライブ開始まで待機
         while is_download != True:
             try:
@@ -103,10 +53,8 @@ class YoutubeModule():
                 info = self.get_info(url)
                 is_download = True
                 break
-            # except youtube_dl.utils.DownloadError as e: #動画URLが有効でない場合にエラーを返す
             except yt_dlp.utils.DownloadError as e: #動画URLが有効でない場合にエラーを返す
                 info = e
-            # except youtube_dl.utils.ExtractorError as e: #動画の抽出に失敗した場合は待機するため処理を続行する
             except yt_dlp.utils.ExtractorError as e: #動画の抽出に失敗した場合は待機するため処理を続行する
                 info = e
             except KeyError as e: # プレミア公開時のキーエラーを無視
@@ -121,18 +69,6 @@ class YoutubeModule():
         # is_download==True の場合、ダウンロード処理を開始する
         if is_download == True:
             now = datetime.datetime.now()
-
-            #ダウンロード開始時刻をダウンロード進行中ののデータテーブルに追記
-            '''
-            start_time = now.strftime('%Y/%m/%d %H:%M')
-            with DatabaseConnect(property.DOWNLOAD_DATA) as db:
-                try:
-                    sql = 'update download set starttime = ?'
-                    result = db.execute(sql, start_time)
-                except Exception as e:
-                    raise e
-            '''
-
 
             #ファイルパス・ファイル名を作成
             date = now.strftime('%Y-%m-%d-%H%M')
@@ -155,16 +91,6 @@ class YoutubeModule():
                 os.mkdir(tmp_path)
             outpath = f'{tmp_path}{title}.%(ext)s'
 
-            start_time = now.strftime('%Y/%m/%d %H:%M')
-
-            #コメントダウンロード処理
-            '''
-            cvm = ChatViewModule(self.get_videoid(url), date)
-            pool = Pool(1)
-            result = pool.apply_async(cvm.get_chatdata)
-            '''
-
-            # with youtube_dl.YoutubeDL(self.ops(info=info, outpath=outpath)) as ydl:
             with yt_dlp.YoutubeDL(self.ops(info=info, outpath=outpath)) as ydl:
                 info = ydl.extract_info(url, download=True)
 
@@ -180,44 +106,7 @@ class YoutubeModule():
                 os.mkdir(f'{save_path}thumbnail/')
             shutil.move(f'{tmp_path}{title}.webp',  f'{save_path}thumbnail/')
             return info
-            
-
-        '''
-        データベースへの登録は別関数に実装すべき？
-        '''
-        '''
-        now = datetime.datetime.now()
-        id = self.get_videoid(url)
-        uploader    = '%(uploader)s' % info
-        channel_id  = '%(channel_id)s' % info
-        channel_url = '%(channel_url)s' % info
-        upload_date = '%(upload_date)s' % info
-        end_time    = now.strftime('%Y/%m/%d %H:%M')
-        title       = '%(title)s' % info
-        description = '%(description)s' % info
-        webpage_url = '%(webpage_url)s' % info
-        is_live     = '%(is_live)s' % info
-        width       = '%(width)s' % info
-        height      = '%(height)s' % info
-
-        
-        with DatabaseConnect(property.DOWNLOAD_DATA) as db:
-            try:
-                sql = 'insert into archive values(?,?,?,?,?,?,?,?,?,?,?,?,?)'
-                result = db.execute(sql, id, uploader, channel_id, channel_url, upload_date, start_time, end_time, title, description, webpage_url, is_live, width, height)
-            except Exception as e:
-                raise e
-
-        with DatabaseConnect(property.DOWNLOAD_DATA) as db:
-            try:
-                sql = 'delete from download where id = ?'
-                result = db.execute(sql, id)
-            except Exception as e:
-                raise e
-        '''
-
     def get_info(self, url):
-        # with youtube_dl.YoutubeDL() as ydl:
         with yt_dlp.YoutubeDL() as ydl:
             info = ydl.extract_info(url, download=False)
         return info
@@ -225,7 +114,6 @@ class YoutubeModule():
     def live_timer(self, info):
         if type(info) == dict:
             return 0
-        # elif type(info) == youtube_dl.utils.DownloadError:
         elif type(info) == yt_dlp.utils.DownloadError:
             if 'This live event will begin in' in str(info.args) or 'Premiere' in str(info.args):
 
