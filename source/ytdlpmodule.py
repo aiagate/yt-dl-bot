@@ -10,6 +10,7 @@ from pathlib import Path
 import yt_dlp
 
 # ---local library---
+from artifact_discovery import discover_download_artifacts
 from download_service import DownloadDependencies
 from external_error_adapter import error_detail, youtube_scheduled_delay
 from setting import Settings
@@ -69,6 +70,14 @@ class YtdlpModule():
             self.ops(outpath=str(outpath)),
         ) as ydl:
             info = ydl.extract_info(url, download=True)
+            artifacts = discover_download_artifacts(
+                info=info,
+                ydl=ydl,
+                output_stem=tmp_path / title,
+                path_exists=self.dependencies.path_exists,
+                require_metadata=False,
+                require_thumbnail=False,
+            )
 
         # ファイルをcacheフォルダから移動
         save_path = self.dependencies.save_path
@@ -79,28 +88,11 @@ class YtdlpModule():
         self.dependencies.ensure_directory(metadata_path)
         self.dependencies.ensure_directory(thumbnail_path)
 
-        if self.dependencies.path_exists(tmp_path / f'{title}.mp4'):
-            self.dependencies.move(tmp_path / f'{title}.mp4', save_path)
-        if self.dependencies.path_exists(tmp_path / f'{title}.info.json'):
-            self.dependencies.move(
-                tmp_path / f'{title}.info.json',
-                metadata_path,
-            )
-        if self.dependencies.path_exists(tmp_path / f'{title}.webp'):
-            self.dependencies.move(
-                tmp_path / f'{title}.webp',
-                thumbnail_path,
-            )
-        if self.dependencies.path_exists(tmp_path / f'{title}.jpg'):
-            self.dependencies.move(
-                tmp_path / f'{title}.jpg',
-                thumbnail_path,
-            )
-        if self.dependencies.path_exists(tmp_path / f'{title}.jpeg'):
-            self.dependencies.move(
-                tmp_path / f'{title}.jpeg',
-                thumbnail_path,
-            )
+        self.dependencies.move(artifacts.video, save_path)
+        for metadata in artifacts.metadata:
+            self.dependencies.move(metadata, metadata_path)
+        for thumbnail in artifacts.thumbnails:
+            self.dependencies.move(thumbnail, thumbnail_path)
 
         return info
 

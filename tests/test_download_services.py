@@ -38,17 +38,32 @@ class FakeYoutubeDL:
         self.extract_calls.append((url, download))
         return self.info.copy()
 
+    def prepare_filename(self, info):
+        template = self.options['outtmpl']
+        return template.replace('%(ext)s', info.get('ext', 'mp4'))
+
 
 class DownloadModuleTestCase:
     module_type = None
 
     def setUp(self):
+        stem = Path('/tmp/downloads/2026-07-28-0905_video：id')
         self.download_info = {
             'id': 'video:id',
             'title': 'Example video',
+            'ext': 'mp4',
+            'filepath': str(Path(f'{stem}.mp4')),
+            'infojson_filename': str(Path(f'{stem}.info.json')),
+            'thumbnails': [
+                {'filepath': str(Path(f'{stem}.webp')), 'ext': 'webp'},
+            ],
         }
         self.ydl_instances = []
-        self.existing_paths = set()
+        self.existing_paths = {
+            Path(f'{stem}.mp4'),
+            Path(f'{stem}.info.json'),
+            Path(f'{stem}.webp'),
+        }
         self.mkdir = Mock(
             side_effect=lambda path, **kwargs: self.existing_paths.add(path),
         )
@@ -248,11 +263,19 @@ class YtdlpModuleBoundaryTest(DownloadModuleTestCase, unittest.TestCase):
 
     def test_download_moves_only_artifacts_reported_as_existing(self):
         stem = Path('/tmp/downloads/2026-07-28-0905_video：id')
-        self.existing_paths.update({
-            Path(f'{stem}.mp4'),
+        self.download_info.update({
+            'ext': 'webm',
+            'filepath': str(Path(f'{stem}.webm')),
+            'infojson_filename': str(Path(f'{stem}.info.json')),
+            'thumbnails': [
+                {'filepath': str(Path(f'{stem}.jpg')), 'ext': 'jpg'},
+            ],
+        })
+        self.existing_paths = {
+            Path(f'{stem}.webm'),
             Path(f'{stem}.info.json'),
             Path(f'{stem}.jpg'),
-        })
+        }
 
         info = self.module.download_video('https://www.twitch.tv/channel')
 
@@ -264,7 +287,7 @@ class YtdlpModuleBoundaryTest(DownloadModuleTestCase, unittest.TestCase):
         self.assertEqual(
             self.move.call_args_list,
             [
-                call(Path(f'{stem}.mp4'), Path('/archive')),
+                call(Path(f'{stem}.webm'), Path('/archive')),
                 call(Path(f'{stem}.info.json'), Path('/archive/metadata')),
                 call(Path(f'{stem}.jpg'), Path('/archive/thumbnail')),
             ],
