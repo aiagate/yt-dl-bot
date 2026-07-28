@@ -4,13 +4,13 @@
 from discord.ext import commands
 
 # ---local library---
-import property
 from url_validation import identify_service
 
 
 class MainCog(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
+        self.settings = bot.settings
 
     @staticmethod
     def is_url(text):
@@ -31,12 +31,12 @@ class MainCog(commands.Cog):
         elif self.is_url(message.content):
             service = self.get_service(message.content)
             if service == 'youtube':
-                if message.channel.id == property.HIGHLIGHT_CHANNEL:
+                if message.channel.id == self.settings.HIGHLIGHT_CHANNEL:
                     message.content = '!youtube highlight ' + message.content
-                elif message.channel.id == property.DOWNLOAD_CHANNEL:
+                elif message.channel.id == self.settings.DOWNLOAD_CHANNEL:
                     message.content = '!youtube download ' + message.content
             elif service == 'twitch':
-                if message.channel.id == property.DOWNLOAD_CHANNEL:
+                if message.channel.id == self.settings.DOWNLOAD_CHANNEL:
                     message.content = '!twitch download ' + message.content
         else:
             return

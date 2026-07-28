@@ -6,8 +6,17 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 CURRENT_PATH = Path(__file__).resolve().parent
 
+DEFAULT_INITIAL_EXTENSIONS = (
+    'cogs.maincog',
+    'cogs.systemcog',
+    'cogs.youtubecog',
+    'cogs.twitchcog',
+)
+
 
 class Settings(BaseSettings):
+    INITIAL_EXTENSIONS: tuple[str, ...] = DEFAULT_INITIAL_EXTENSIONS
+
     DISCORD_KEY: SecretStr
 
     LOG_CHANNEL: int

@@ -11,22 +11,25 @@ import shutil
 import yt_dlp
 
 # ---local library---
-import property
 from download_service import DownloadDependencies
+from setting import Settings
 
 
 class YtdlpModule():
-    def __init__(self, dependencies=None):
-        self.dependencies = dependencies or DownloadDependencies(
-            ydl_factory=yt_dlp.YoutubeDL,
-            now=datetime.datetime.now,
-            sleep=time.sleep,
-            path_exists=os.path.exists,
-            make_directory=os.mkdir,
-            move=shutil.move,
-            tmp_path=property.TMP_PATH,
-            save_path=property.SAVE_PATH,
-        )
+    def __init__(self, dependencies=None, settings=None):
+        if dependencies is None:
+            settings = settings or Settings()
+            dependencies = DownloadDependencies(
+                ydl_factory=yt_dlp.YoutubeDL,
+                now=datetime.datetime.now,
+                sleep=time.sleep,
+                path_exists=os.path.exists,
+                make_directory=os.mkdir,
+                move=shutil.move,
+                tmp_path=settings.TMP_PATH,
+                save_path=settings.SAVE_PATH,
+            )
+        self.dependencies = dependencies
 
     def data_check(self, url, ydl_ops={}):
 

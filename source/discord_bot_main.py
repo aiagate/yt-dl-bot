@@ -10,14 +10,15 @@ import discord
 from discord.ext import commands
 
 # ---local library---
-import property
+from setting import Settings
 
 
 class MyBot(commands.Bot):
 
-    def __init__(self, command_prefix):
+    def __init__(self, command_prefix, settings):
         # loggerを作成
         self.logger = getLogger(__name__)
+        self.settings = settings
 
         # スーパークラスのコンストラクタに値を渡して実行。
         super().__init__(intents=discord.Intents.all(),command_prefix=command_prefix)
@@ -25,7 +26,7 @@ class MyBot(commands.Bot):
 
     async def setup_hook(self):
         # Cogをpropartyのリストからロード
-        for cog in property.INITIAL_EXTENSIONS:
+        for cog in self.settings.INITIAL_EXTENSIONS:
             try:
                 await self.load_extension(cog)
                 self.logger.info(f'Success: Cog loaded ({cog})')
@@ -40,14 +41,15 @@ class MyBot(commands.Bot):
         self.logger.info(self.user.id)
         self.logger.info('----------------')
 
-if __name__ == '__main__':
+def main(settings=None):
+    settings = settings or Settings()
     logging.basicConfig(
         level=INFO,
         format='[ %(levelname)-8s] %(asctime)s | %(name)-16s %(funcName)-16s| %(message)s',
         datefmt='%Y-%m-%d %H:%M:%S'
     )
 
-    log_path = property.LOG_PATH
+    log_path = settings.LOG_PATH
     if not os.path.exists(log_path):
         os.mkdir(log_path)
     fh = logging.FileHandler(filename=f'{log_path}/discord_bot_main.log', encoding='utf-8')
@@ -59,7 +61,11 @@ if __name__ == '__main__':
     logger = getLogger(__name__)
     logger.addHandler(fh)
 
-    bot = MyBot(command_prefix='!')
-    bot.run(property.DISCORD_KEY)
+    bot = MyBot(command_prefix='!', settings=settings)
+    bot.run(settings.DISCORD_KEY.get_secret_value())
     logger2 = getLogger('youtubemodule')
     logger2.addHandler(fh)
+
+
+if __name__ == '__main__':
+    main()

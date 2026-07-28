@@ -6,7 +6,7 @@ from logging import getLogger
 import matplotlib.pyplot as plt
 from pytchat import create
 
-import property
+from setting import Settings
 
 
 class ChatDataModule:
@@ -14,13 +14,14 @@ class ChatDataModule:
 
     BUCKET_SECONDS = 30
 
-    def __init__(self, video_id):
+    def __init__(self, video_id, settings=None):
+        settings = settings or Settings()
         self.logger = getLogger(__name__)
         self.video_id = video_id
         self.url = f'https://youtu.be/{video_id}'
         date = datetime.datetime.now().strftime('%Y-%m-%d-%H%M')
         self.image_name = f'scoregraph_{date}_{video_id}.png'
-        self.image_path = os.path.join(property.TMP_PATH, self.image_name)
+        self.image_path = os.path.join(settings.TMP_PATH, self.image_name)
 
     @staticmethod
     def _elapsed_seconds(elapsed_time):

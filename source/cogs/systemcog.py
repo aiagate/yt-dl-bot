@@ -8,16 +8,12 @@ import traceback
 from discord import Embed
 from discord.ext import commands
 
-# ---local library---
-import property
-
-
-def _extension_names(arguments):
+def _extension_names(arguments, initial_extensions):
     """Expand ``all`` and remove duplicate extension names."""
     names = []
     for argument in arguments:
         extensions = (
-            property.INITIAL_EXTENSIONS
+            initial_extensions
             if argument == 'all'
             else ('cogs.' + argument,)
         )
@@ -30,6 +26,7 @@ def _extension_names(arguments):
 class SystemCog(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
+        self.settings = bot.settings
 
     @commands.group(name='system')
     async def botsystem(self, ctx):
@@ -39,7 +36,7 @@ class SystemCog(commands.Cog):
     @botsystem.command(name='close')
     @commands.is_owner()
     async def botsystem_close(self, ctx):
-        await self.bot.get_channel(property.LOG_CHANNEL).send('Bot System Will Be Shutdown...')
+        await self.bot.get_channel(self.settings.LOG_CHANNEL).send('Bot System Will Be Shutdown...')
         await asyncio.sleep(3)
         await self.bot.close()
 
@@ -55,7 +52,10 @@ class SystemCog(commands.Cog):
             await ctx.send('Error: missing cog name opetand')
             return
 
-        for extension in _extension_names(args):
+        for extension in _extension_names(
+            args,
+            self.settings.INITIAL_EXTENSIONS,
+        ):
             await self.bot.reload_extension(extension)
             await ctx.send('Success: ' + extension + ' is Reloaded.')
 
@@ -70,7 +70,10 @@ class SystemCog(commands.Cog):
             await ctx.send('Error: missing cog name opetand')
             return
 
-        for extension in _extension_names(args):
+        for extension in _extension_names(
+            args,
+            self.settings.INITIAL_EXTENSIONS,
+        ):
             await self.bot.load_extension(extension)
             await ctx.send('Success: ' + extension + ' is Loaded.')
     
@@ -97,7 +100,10 @@ class SystemCog(commands.Cog):
             await ctx.send("Error: systemcog can't unload. (force unload : -f)")
             return
 
-        for extension in _extension_names(targets):
+        for extension in _extension_names(
+            targets,
+            self.settings.INITIAL_EXTENSIONS,
+        ):
             await self.bot.unload_extension(extension)
             await ctx.send('Success: ' + extension + ' is Unloaded.')
     
@@ -107,11 +113,11 @@ class SystemCog(commands.Cog):
 
     @commands.command(enabled=False)
     async def send_log(self, ctx, *args, **kwargs):
-        await self.bot.get_channel(property.LOG_CHANNEL).send('``' + '\n'.join(args) + '``')
+        await self.bot.get_channel(self.settings.LOG_CHANNEL).send('``' + '\n'.join(args) + '``')
     
     @commands.command(enabled=False)
     async def send_error_log(self, ctx, error, *args, **kwargs):
-        log_channel = self.bot.get_channel(property.LOG_CHANNEL)
+        log_channel = self.bot.get_channel(self.settings.LOG_CHANNEL)
         await ctx.reply('Error: Check ' + log_channel.mention)
 
         error_log = str(traceback.format_exc())
@@ -124,7 +130,7 @@ class SystemCog(commands.Cog):
             num += 1
         embed.add_field(name=str(num), value=error_log, inline=False)
         
-        await self.bot.get_channel(property.LOG_CHANNEL).send(embed = embed)
+        await self.bot.get_channel(self.settings.LOG_CHANNEL).send(embed = embed)
 
         # self.logger.exception(traceback.format_exc())
         # self.bot.logger.exception(traceback.format_exc())
@@ -132,15 +138,13 @@ class SystemCog(commands.Cog):
             self.bot.logger.error(line)
 
 
-        # await self.bot.get_channel(property.LOG_CHANNEL).send('```' + traceback.format_exc() + '```')
-
     @commands.command(enabled=False)
     async def send_video_output_log(self, ctx, info, url):
-        await self.bot.get_channel(property.VIDEO_OUTPUT_CHANNEL).send('**Download Success : **' + '%(title)s' % info + '\n' + url)
+        await self.bot.get_channel(self.settings.VIDEO_OUTPUT_CHANNEL).send('**Download Success : **' + '%(title)s' % info + '\n' + url)
 
     @commands.command(enabled=False)
     async def send_highlight_output_log(self, ctx, file, embed):
-        await self.bot.get_channel(property.HIGHLIGHT_OUTPUT_CHANNEL).send(file=file, embed=embed)
+        await self.bot.get_channel(self.settings.HIGHLIGHT_OUTPUT_CHANNEL).send(file=file, embed=embed)
 
 async def setup(bot):
     await bot.add_cog(SystemCog(bot))

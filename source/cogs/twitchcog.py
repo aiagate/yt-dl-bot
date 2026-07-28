@@ -9,7 +9,6 @@ from discord.ext import commands
 
 # ---local library---
 import ytdlpmodule
-import property
 from url_validation import validate_service_url
 
 
@@ -17,8 +16,8 @@ class TwitchCog(commands.Cog):
     def __init__(self, bot):
         importlib.reload(importlib)
         importlib.reload(ytdlpmodule)
-        importlib.reload(property)
         self.bot = bot
+        self.settings = bot.settings
 
     @staticmethod
     def parse_url(url):
@@ -33,7 +32,7 @@ class TwitchCog(commands.Cog):
     async def download_video(self, ctx, *args, **kwargs):
         url = self.parse_url(args[0])
 
-        ytm = ytdlpmodule.YtdlpModule()
+        ytm = ytdlpmodule.YtdlpModule(settings=self.settings)
 
         fn = partial(ytm.data_check, url=url, ydl_ops={})
         try:
