@@ -141,25 +141,9 @@ class YoutubeCog(commands.Cog):
 
         ytm = youtubemodule.YoutubeModule()
         video_id = ytm.get_videoid(url=url)
+        video_info = ytm.get_info(url=url)
 
-        ytapi = youtubeapi.YoutubeApi()
-        try:
-            livedetail = ytapi.get_livedetail(video_id)
-        except Exception as e:
-            await ctx.invoke(self.bot.get_command('send_error_log'), e)
-            raise e
-        cdm = chatdatamodule.ChatDataModule(
-            video_id=video_id, livedetail=livedetail)
-        '''
-        pool = Pool(1)
-        try:
-            result = pool.apply_async(cdm.get_highlight)
-            result.wait()
-            highlight_urls = result.get()
-        except Exception as e:
-            await ctx.invoke(self.bot.get_command('send_error_log'), e)
-        '''
-
+        cdm = chatdatamodule.ChatDataModule(video_id=video_id, starttime=video_info['release_timestamp'])
         fn = partial(cdm.get_highlight)
         try:
             highlight_urls = await self.bot.loop.run_in_executor(None, fn)
@@ -173,9 +157,10 @@ class YoutubeCog(commands.Cog):
         # await ctx.invoke(self.bot.get_command('echo'), res)
 
         try:
-            channel_name = ytapi.get_channel_name(livedetail)
-            title = ytapi.get_title(livedetail)
-            thumbnail_url = ytapi.get_thumbnail_url(livedetail)
+            video_info.setdefault('fulltitle', video_info['title'])
+            channel_name = video_info['channel']
+            title = video_info['fulltitle']
+            thumbnail_url = video_info['thumbnail']
 
             graph_image = cdm.image_path
             self.bot.logger.debug(graph_image)
@@ -203,7 +188,7 @@ class YoutubeCog(commands.Cog):
             raise e
 
         try:
-            out_path = "/mnt/media/Youtube/graphImage/"
+            out_path = property.GRAPH_SAVE_PATH
             if not os.path.exists(out_path):
                 os.mkdir(out_path)
             shutil.move(graph_image, out_path)
@@ -311,6 +296,6 @@ class YoutubeCog(commands.Cog):
             if (urls != ''):
                 embed.add_field(name='search result', value=urls)
                 await ctx.invoke(self.bot.get_command('send_search_output_log'), embed)
-        await ctx.reply(f'Search Finish!')
+        await ctx.reply(f'Search Finished!')
 def setup(bot):
     return bot.add_cog(YoutubeCog(bot))

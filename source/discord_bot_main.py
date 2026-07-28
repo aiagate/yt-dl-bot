@@ -5,6 +5,7 @@ import sqlite3
 import traceback
 import logging
 from logging import DEBUG, INFO, Logger, getLogger
+import os
 
 # ---third party library---
 import discord
@@ -46,7 +47,11 @@ if __name__ == '__main__':
         format='[ %(levelname)-8s] %(asctime)s | %(name)-16s %(funcName)-16s| %(message)s',
         datefmt='%Y-%m-%d %H:%M:%S'
     )
-    fh = logging.FileHandler(filename='log/discord_bot_main.log', encoding='utf-8')
+
+    log_path = property.LOG_PATH
+    if not os.path.exists(log_path):
+        os.mkdir(log_path)
+    fh = logging.FileHandler(filename=f'{log_path}/discord_bot_main.log', encoding='utf-8')
     fh.setLevel=INFO
     fh.setFormatter(logging.Formatter('[ %(levelname)-8s] %(asctime)s | %(name)-16s %(funcName)-24s | %(message)s', datefmt='%Y-%m-%d %H:%M:%S'))
 

@@ -1,0 +1,47 @@
+services:
+  bot:
+    build: .
+    environment:
+      DISCORD_KEY: ${DISCORD_KEY:?Set DISCORD_KEY in .env}
+      YOUTUBE_API_KEY: ${YOUTUBE_API_KEY:?Set YOUTUBE_API_KEY in .env}
+      DB_HOSTNAME: database
+      DB_USERNAME: ${DB_USERNAME:?Set DB_USERNAME in .env}
+      DB_PASSWORD: ${DB_PASSWORD:?Set DB_PASSWORD in .env}
+      LOG_CHANNEL: ${LOG_CHANNEL:?Set LOG_CHANNEL in .env}
+      VIDEO_OUTPUT_CHANNEL: ${VIDEO_OUTPUT_CHANNEL:?Set VIDEO_OUTPUT_CHANNEL in .env}
+      HIGHLIGHT_OUTPUT_CHANNEL: ${HIGHLIGHT_OUTPUT_CHANNEL:?Set HIGHLIGHT_OUTPUT_CHANNEL in .env}
+      SEARCH_OUTPUT_CHANNEL: ${SEARCH_OUTPUT_CHANNEL:?Set SEARCH_OUTPUT_CHANNEL in .env}
+      DOWNLOAD_CHANNEL: ${DOWNLOAD_CHANNEL:?Set DOWNLOAD_CHANNEL in .env}
+      HIGHLIGHT_CHANNEL: ${HIGHLIGHT_CHANNEL:?Set HIGHLIGHT_CHANNEL in .env}
+      SEARCH_CHANNEL: ${SEARCH_CHANNEL:?Set SEARCH_CHANNEL in .env}
+    volumes:
+      - ${DOWNLOADS_PATH:-./downloads}:/app/downloads
+      - ${DATABASES_PATH:-./databases}:/app/databases
+      - ${COOKIE_PATH:-./cookie}:/app/cookie:ro
+      - ./logs:/app/logs
+    restart: always
+    depends_on:
+      database:
+        condition: service_healthy
+
+  database:
+    image: mysql:8.0
+    environment:
+      TZ: Asia/Tokyo
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?Set MYSQL_ROOT_PASSWORD in .env}
+      MYSQL_USER: ${DB_USERNAME:?Set DB_USERNAME in .env}
+      MYSQL_PASSWORD: ${DB_PASSWORD:?Set DB_PASSWORD in .env}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-youtube_chat}
+    volumes:
+      - ./mysql/my.cnf:/etc/mysql/conf.d/my.cnf:ro
+      - mysql-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h localhost -u root -p$$MYSQL_ROOT_PASSWORD"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    restart: always
+
+volumes:
+  mysql-data:
