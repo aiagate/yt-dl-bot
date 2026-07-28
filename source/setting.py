@@ -25,11 +25,11 @@ class Settings(BaseSettings):
     DOWNLOAD_CHANNEL: int
     HIGHLIGHT_CHANNEL: int
 
-    SAVE_PATH: str = 'downloads/'
-    GRAPH_SAVE_PATH: str = 'downloads/graph/'
-    TMP_PATH: str = 'downloads/cache/'
-    LOG_PATH: str = 'logs/'
-    COLLECTOR_LOG_PATH: str = 'logs/'
+    SAVE_PATH: Path = Path('downloads')
+    GRAPH_SAVE_PATH: Path = Path('downloads/graph')
+    TMP_PATH: Path = Path('downloads/cache')
+    LOG_PATH: Path = Path('logs')
+    COLLECTOR_LOG_PATH: Path = Path('logs')
 
     model_config = SettingsConfigDict(
         env_file=(

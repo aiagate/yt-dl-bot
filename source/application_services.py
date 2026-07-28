@@ -1,9 +1,9 @@
 """Discord-independent application services."""
 
 import datetime
-import os
 import shutil
 from dataclasses import dataclass
+from pathlib import Path
 
 from application_errors import (
     ArtifactStorageError,
@@ -28,7 +28,7 @@ class HighlightResult:
     title: str
     channel_name: str
     thumbnail_url: str
-    graph_image: str
+    graph_image: Path
     highlight_fields: tuple[str, ...]
 
 
@@ -99,8 +99,8 @@ class YoutubeHighlightService:
         settings,
         youtube,
         chat_factory=None,
-        path_exists=os.path.exists,
-        make_directory=os.mkdir,
+        path_exists=Path.exists,
+        make_directory=Path.mkdir,
         move=shutil.move,
     ):
         self.settings = settings
@@ -128,16 +128,20 @@ class YoutubeHighlightService:
             title=title,
             channel_name=video_info['channel'],
             thumbnail_url=video_info['thumbnail'],
-            graph_image=chat.image_path,
+            graph_image=Path(chat.image_path),
             highlight_fields=split_highlight_text(highlights),
         )
 
     def archive_graph(self, graph_image):
         try:
-            output_path = self.settings.GRAPH_SAVE_PATH
+            output_path = Path(self.settings.GRAPH_SAVE_PATH)
             if not self.path_exists(output_path):
-                self.make_directory(output_path)
-            self.move(graph_image, output_path)
+                self.make_directory(
+                    output_path,
+                    parents=True,
+                    exist_ok=True,
+                )
+            self.move(Path(graph_image), output_path)
         except (OSError, shutil.Error) as error:
             raise ArtifactStorageError(
                 f'Unable to archive highlight graph: {error}',

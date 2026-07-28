@@ -1,7 +1,7 @@
 import datetime
-import os
 from collections import deque
 from logging import getLogger
+from pathlib import Path
 
 import matplotlib.pyplot as plt
 from pytchat import create
@@ -21,7 +21,7 @@ class ChatDataModule:
         self.url = f'https://youtu.be/{video_id}'
         date = datetime.datetime.now().strftime('%Y-%m-%d-%H%M')
         self.image_name = f'scoregraph_{date}_{video_id}.png'
-        self.image_path = os.path.join(settings.TMP_PATH, self.image_name)
+        self.image_path = Path(settings.TMP_PATH) / self.image_name
 
     @staticmethod
     def _elapsed_seconds(elapsed_time):
@@ -70,7 +70,7 @@ class ChatDataModule:
         return score_data
 
     def plot_peak(self, score_data):
-        os.makedirs(os.path.dirname(self.image_path), exist_ok=True)
+        self.image_path.parent.mkdir(parents=True, exist_ok=True)
         figure = plt.figure()
         plt.plot(
             [index * self.BUCKET_SECONDS for index in range(len(score_data))],

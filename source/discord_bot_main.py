@@ -3,7 +3,7 @@
 # ---standard library---
 import logging
 from logging import DEBUG, INFO, Logger, getLogger
-import os
+from pathlib import Path
 
 # ---third party library---
 import discord
@@ -55,10 +55,9 @@ def main(settings=None):
         datefmt='%Y-%m-%d %H:%M:%S'
     )
 
-    log_path = settings.LOG_PATH
-    if not os.path.exists(log_path):
-        os.mkdir(log_path)
-    fh = logging.FileHandler(filename=f'{log_path}/discord_bot_main.log', encoding='utf-8')
+    log_path = Path(settings.LOG_PATH)
+    log_path.mkdir(parents=True, exist_ok=True)
+    fh = logging.FileHandler(filename=log_path / 'discord_bot_main.log', encoding='utf-8')
     fh.setLevel=INFO
     fh.setFormatter(logging.Formatter('[ %(levelname)-8s] %(asctime)s | %(name)-16s %(funcName)-24s | %(message)s', datefmt='%Y-%m-%d %H:%M:%S'))
 

@@ -27,6 +27,8 @@ class SettingsTest(unittest.TestCase):
 
         self.assertEqual(settings.LOG_CHANNEL, 1)
         self.assertEqual(settings.DISCORD_KEY.get_secret_value(), 'discord-token')
+        self.assertIsInstance(settings.SAVE_PATH, Path)
+        self.assertEqual(settings.TMP_PATH, Path('downloads/cache'))
 
 
 if __name__ == '__main__':
