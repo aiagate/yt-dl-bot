@@ -2,11 +2,16 @@
 
 # ---standard library---
 import asyncio
-import traceback
 
 # ---third party library---
 from discord import Embed
 from discord.ext import commands
+
+from error_reporting import (
+    format_exception_traceback,
+    split_traceback_for_embeds,
+)
+
 
 def _extension_names(arguments, initial_extensions):
     """Expand ``all`` and remove duplicate extension names."""
@@ -118,24 +123,25 @@ class SystemCog(commands.Cog):
     @commands.command(enabled=False)
     async def send_error_log(self, ctx, error, *args, **kwargs):
         log_channel = self.bot.get_channel(self.settings.LOG_CHANNEL)
+        error_log = format_exception_traceback(error)
+
+        # Persist the complete traceback before attempting Discord I/O. This
+        # ensures a failed notification never hides the original error.
+        self.bot.logger.error(error_log)
+
         await ctx.reply('Error: Check ' + log_channel.mention)
 
-        error_log = str(traceback.format_exc())
-
-        embed = Embed(title='', description='') #, color=0xff0000)
-        num = 1
-        while len(error_log) > 1024:
-            embed.add_field(name=str(num), value=error_log[:1024], inline=False)
-            error_log = error_log[1024:]
-            num += 1
-        embed.add_field(name=str(num), value=error_log, inline=False)
-        
-        await self.bot.get_channel(self.settings.LOG_CHANNEL).send(embed = embed)
-
-        # self.logger.exception(traceback.format_exc())
-        # self.bot.logger.exception(traceback.format_exc())
-        for line in error_log.split('\n'):
-            self.bot.logger.error(line)
+        field_number = 1
+        for field_batch in split_traceback_for_embeds(error_log):
+            embed = Embed()
+            for field_value in field_batch:
+                embed.add_field(
+                    name=f'Traceback {field_number}',
+                    value=field_value,
+                    inline=False,
+                )
+                field_number += 1
+            await log_channel.send(embed=embed)
 
 
     @commands.command(enabled=False)
