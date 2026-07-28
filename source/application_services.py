@@ -62,7 +62,7 @@ class VideoDownloadService:
 
     def check(self, url):
         try:
-            return self.downloader.data_check(url=url, ydl_ops={})
+            return self.downloader.data_check(url=url)
         except Exception as error:
             raise VideoCheckError(
                 f'Unable to check video: {error_detail(error)}',
@@ -83,7 +83,7 @@ class VideoDownloadService:
 class TwitchDownloadService(VideoDownloadService):
     def check(self, url):
         try:
-            return self.downloader.data_check(url=url, ydl_ops={})
+            return self.downloader.data_check(url=url)
         except Exception as error:
             if is_twitch_offline(error):
                 raise TwitchStreamOffline(error_detail(error)) from error

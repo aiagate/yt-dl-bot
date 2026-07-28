@@ -33,7 +33,7 @@ class YtdlpModule():
             )
         self.dependencies = dependencies
 
-    def data_check(self, url, ydl_ops={}):
+    def data_check(self, url):
         #URLから動画情報を抽出
         info = self.get_info(url=url)
 
@@ -43,7 +43,7 @@ class YtdlpModule():
                   'Download start...'
         return message
 
-    def download_video(self, url, ops={}):
+    def download_video(self, url):
         now = self.dependencies.now()
         info = self.get_info(url)
 
