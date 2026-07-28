@@ -8,15 +8,15 @@ from pathlib import Path
 
 import yt_dlp
 
-from artifact_discovery import DownloadedArtifacts, discover_download_artifacts
-from download_service import (
+from .artifact_discovery import DownloadedArtifacts, discover_download_artifacts
+from .download_service import (
     DownloadDependencies,
     DownloadRetryLimitExceeded,
     PermanentDownloadError,
     RetryPolicy,
     RetryStatus,
 )
-from external_error_adapter import (
+from .external_error_adapter import (
     youtube_scheduled_delay,
     youtube_scheduled_notice,
 )

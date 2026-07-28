@@ -1,12 +1,9 @@
-import sys
 import unittest
 from pathlib import Path
 
 
-SOURCE_PATH = Path(__file__).resolve().parents[1] / 'source'
-sys.path.insert(0, str(SOURCE_PATH))
 
-from url_validation import (
+from yt_dl_bot.url_validation import (
     extract_youtube_video_id,
     identify_service,
     parse_youtube_video_url,

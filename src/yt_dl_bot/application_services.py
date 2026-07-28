@@ -8,19 +8,19 @@ from pathlib import Path
 import yt_dlp
 from pytchat import exceptions as pytchat_exceptions
 
-from application_errors import (
+from .application_errors import (
     ArtifactStorageError,
     HighlightCreationError,
     VideoCheckError,
     VideoDownloadError,
 )
-from artifact_discovery import ArtifactDiscoveryError
-from chatdatamodule import ChatDataModule
-from download_engine import DownloadOutcome
-from download_service import DownloadWaitError
-from external_error_adapter import error_detail, is_twitch_offline
-from youtubemodule import YoutubeModule
-from ytdlpmodule import YtdlpModule
+from .artifact_discovery import ArtifactDiscoveryError
+from .chatdatamodule import ChatDataModule
+from .download_engine import DownloadOutcome
+from .download_service import DownloadWaitError
+from .external_error_adapter import error_detail, is_twitch_offline
+from .youtubemodule import YoutubeModule
+from .ytdlpmodule import YtdlpModule
 
 
 DOWNLOAD_ADAPTER_ERRORS = (

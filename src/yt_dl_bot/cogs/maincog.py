@@ -4,7 +4,7 @@
 from discord.ext import commands
 
 # ---local library---
-from message_router import MessageAction, MessageRouter
+from ..message_router import MessageAction, MessageRouter
 
 
 class MainCog(commands.Cog):

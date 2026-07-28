@@ -1,16 +1,14 @@
 import ast
 import inspect
-import sys
 import unittest
 from pathlib import Path
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
-SOURCE_PATH = PROJECT_ROOT / 'source'
-sys.path.insert(0, str(SOURCE_PATH))
+SOURCE_PATH = PROJECT_ROOT / 'src' / 'yt_dl_bot'
 
-from youtubemodule import YoutubeModule
-from ytdlpmodule import YtdlpModule
+from yt_dl_bot.youtubemodule import YoutubeModule
+from yt_dl_bot.ytdlpmodule import YtdlpModule
 
 
 class MutableDefaultsTest(unittest.TestCase):

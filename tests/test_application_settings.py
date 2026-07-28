@@ -1,4 +1,4 @@
-import importlib.util
+import importlib
 import os
 import sys
 import unittest
@@ -7,14 +7,12 @@ from types import SimpleNamespace
 from unittest.mock import patch
 
 
-SOURCE_PATH = Path(__file__).resolve().parents[1] / 'source'
-sys.path.insert(0, str(SOURCE_PATH))
 
-from chatdatamodule import ChatDataModule
-from discord_bot_main import MyBot
-from setting import Settings
-from youtubemodule import YoutubeModule
-from ytdlpmodule import YtdlpModule
+from yt_dl_bot.chatdatamodule import ChatDataModule
+from yt_dl_bot.discord_bot_main import MyBot
+from yt_dl_bot.setting import Settings
+from yt_dl_bot.youtubemodule import YoutubeModule
+from yt_dl_bot.ytdlpmodule import YtdlpModule
 
 
 def settings_for(name):
@@ -74,15 +72,9 @@ class ApplicationSettingsTest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(second_chat.image_path.parent, Path('/second/cache'))
 
     def test_property_compatibility_module_has_no_environment_side_effect(self):
-        property_path = SOURCE_PATH / 'property.py'
-        spec = importlib.util.spec_from_file_location(
-            'isolated_property',
-            property_path,
-        )
-        module = importlib.util.module_from_spec(spec)
-
         with patch.dict(os.environ, {}, clear=True):
-            spec.loader.exec_module(module)
+            sys.modules.pop('yt_dl_bot.property', None)
+            module = importlib.import_module('yt_dl_bot.property')
 
         self.assertEqual(
             module.INITIAL_EXTENSIONS,

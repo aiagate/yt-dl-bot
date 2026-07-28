@@ -1,19 +1,11 @@
-import pathlib
-import sys
 import unittest
 from unittest.mock import AsyncMock, Mock
 
 from discord.ext import commands
 
-
-sys.path.insert(
-    0,
-    str(pathlib.Path(__file__).resolve().parents[1] / 'source'),
-)
-
-from cogs.command_arguments import TwitchURL, YoutubeURL
-from cogs.twitchcog import TwitchCog
-from cogs.youtubecog import YoutubeCog
+from yt_dl_bot.cogs.command_arguments import TwitchURL, YoutubeURL
+from yt_dl_bot.cogs.twitchcog import TwitchCog
+from yt_dl_bot.cogs.youtubecog import YoutubeCog
 
 
 class URLConverterTest(unittest.IsolatedAsyncioTestCase):

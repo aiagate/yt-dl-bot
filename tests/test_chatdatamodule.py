@@ -1,15 +1,12 @@
 import datetime
-import sys
 import unittest
 from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import Mock, patch
 
 
-SOURCE_PATH = Path(__file__).resolve().parents[1] / 'source'
-sys.path.insert(0, str(SOURCE_PATH))
 
-from chatdatamodule import (
+from yt_dl_bot.chatdatamodule import (
     ChatDataModule,
     HighlightAnalyzer,
     MatplotlibGraphRenderer,
@@ -51,7 +48,7 @@ class HighlightAnalyzerTest(unittest.TestCase):
 
 
 class PytchatSourceTest(unittest.TestCase):
-    @patch('chatdatamodule.create')
+    @patch('yt_dl_bot.chatdatamodule.create')
     def test_collects_elapsed_times_and_always_terminates_chat(self, create):
         chat = create.return_value
         chat.is_alive.side_effect = [True, False]
@@ -68,7 +65,7 @@ class PytchatSourceTest(unittest.TestCase):
         self.assertEqual(elapsed_times, ['0:01', '0:02'])
         chat.terminate.assert_called_once_with()
 
-    @patch('chatdatamodule.create')
+    @patch('yt_dl_bot.chatdatamodule.create')
     def test_large_collection_is_lazy_and_not_buffered(self, create):
         chat = create.return_value
         chat.is_alive.return_value = True
@@ -128,7 +125,7 @@ class ChatDataModuleTest(unittest.TestCase):
 
 
 class MatplotlibGraphRendererTest(unittest.TestCase):
-    @patch('chatdatamodule.plt')
+    @patch('yt_dl_bot.chatdatamodule.plt')
     def test_render_creates_parent_and_closes_figure(self, plt):
         figure = plt.figure.return_value
         image_path = Path('downloads/cache/graph.png')

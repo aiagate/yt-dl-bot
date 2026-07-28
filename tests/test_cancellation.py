@@ -1,6 +1,5 @@
 import asyncio
 import concurrent.futures
-import sys
 import threading
 import unittest
 from pathlib import Path
@@ -9,21 +8,19 @@ from unittest.mock import Mock
 import yt_dlp
 
 
-SOURCE_PATH = Path(__file__).resolve().parents[1] / 'source'
-sys.path.insert(0, str(SOURCE_PATH))
 
-from cancellation import (
+from yt_dl_bot.cancellation import (
     CancellationToken,
     DownloadCancelled,
     to_thread_cancellable,
 )
-from application_services import VideoDownloadService
-from download_engine import (
+from yt_dl_bot.application_services import VideoDownloadService
+from yt_dl_bot.download_engine import (
     DownloadEngine,
     generic_download_policy,
     youtube_download_policy,
 )
-from download_service import DownloadDependencies, RetryPolicy
+from yt_dl_bot.download_service import DownloadDependencies, RetryPolicy
 
 
 def dependencies():

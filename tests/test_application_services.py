@@ -1,5 +1,4 @@
 import asyncio
-import sys
 import traceback
 import unittest
 from pathlib import Path
@@ -9,10 +8,8 @@ from unittest.mock import AsyncMock, Mock, patch
 import yt_dlp
 
 
-SOURCE_PATH = Path(__file__).resolve().parents[1] / 'source'
-sys.path.insert(0, str(SOURCE_PATH))
 
-from application_services import (
+from yt_dl_bot.application_services import (
     DownloadResult,
     HighlightResult,
     TwitchDownloadService,
@@ -21,17 +18,17 @@ from application_services import (
     YoutubeHighlightService,
     split_highlight_text,
 )
-from application_errors import (
+from yt_dl_bot.application_errors import (
     ArtifactStorageError,
     HighlightCreationError,
     VideoCheckError,
     VideoDownloadError,
 )
-from cogs.twitchcog import TwitchCog
-from cogs.youtubecog import YoutubeCog
-from cancellation import CancellationToken
-from artifact_discovery import DownloadedArtifacts
-from download_engine import DownloadOutcome
+from yt_dl_bot.cogs.twitchcog import TwitchCog
+from yt_dl_bot.cogs.youtubecog import YoutubeCog
+from yt_dl_bot.cancellation import CancellationToken
+from yt_dl_bot.artifact_discovery import DownloadedArtifacts
+from yt_dl_bot.download_engine import DownloadOutcome
 
 
 class VideoDownloadServiceTest(unittest.TestCase):
@@ -458,10 +455,10 @@ class CogDelegationTest(unittest.IsolatedAsyncioTestCase):
 
         with (
             patch(
-                'cogs.youtubecog.File',
+                'yt_dl_bot.cogs.youtubecog.File',
                 return_value='discord-file',
             ) as file_factory,
-            patch('cogs.youtubecog.Embed', return_value=embed),
+            patch('yt_dl_bot.cogs.youtubecog.Embed', return_value=embed),
             patch('asyncio.to_thread', self.to_thread_mock()) as to_thread,
         ):
             await YoutubeCog.get_highlight.callback(

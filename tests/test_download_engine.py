@@ -1,6 +1,5 @@
 import datetime
 import shutil
-import sys
 import tempfile
 import unittest
 from pathlib import Path
@@ -10,19 +9,18 @@ import yt_dlp
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
-SOURCE_PATH = PROJECT_ROOT / 'source'
-sys.path.insert(0, str(SOURCE_PATH))
+SOURCE_PATH = PROJECT_ROOT / 'src' / 'yt_dl_bot'
 
-from artifact_discovery import DownloadedArtifacts
-from download_engine import (
+from yt_dl_bot.artifact_discovery import DownloadedArtifacts
+from yt_dl_bot.download_engine import (
     DownloadEngine,
     build_output_name,
     generic_download_policy,
     youtube_download_policy,
 )
-from download_service import DownloadDependencies, RetryPolicy
-from youtubemodule import YoutubeModule
-from ytdlpmodule import YtdlpModule
+from yt_dl_bot.download_service import DownloadDependencies, RetryPolicy
+from yt_dl_bot.youtubemodule import YoutubeModule
+from yt_dl_bot.ytdlpmodule import YtdlpModule
 
 
 def dependencies(existing=()):

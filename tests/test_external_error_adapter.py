@@ -1,5 +1,4 @@
 import json
-import sys
 import unittest
 from pathlib import Path
 
@@ -7,10 +6,8 @@ import yt_dlp
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
-SOURCE_PATH = PROJECT_ROOT / 'source'
-sys.path.insert(0, str(SOURCE_PATH))
 
-from external_error_adapter import (
+from yt_dl_bot.external_error_adapter import (
     ExternalErrorKind,
     is_twitch_offline,
     parse_external_error,

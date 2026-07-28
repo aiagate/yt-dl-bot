@@ -1,12 +1,9 @@
-import sys
 import unittest
 from pathlib import Path
 
 
-SOURCE_PATH = Path(__file__).resolve().parents[1] / 'source'
-sys.path.insert(0, str(SOURCE_PATH))
 
-from error_reporting import (
+from yt_dl_bot.error_reporting import (
     DISCORD_FIELDS_PER_EMBED,
     DISCORD_FIELD_VALUE_LIMIT,
     EMPTY_TRACEBACK_MESSAGE,

@@ -1,4 +1,3 @@
-import sys
 import unittest
 from pathlib import Path
 from types import SimpleNamespace
@@ -7,18 +6,16 @@ from unittest.mock import AsyncMock, Mock, call, patch
 from discord.ext import commands
 
 
-SOURCE_PATH = Path(__file__).resolve().parents[1] / 'source'
-sys.path.insert(0, str(SOURCE_PATH))
 
-from cogs.systemcog import SystemCog
-from application_services import DownloadResult
+from yt_dl_bot.cogs.systemcog import SystemCog
+from yt_dl_bot.application_services import DownloadResult
 
 
 INITIAL_EXTENSIONS = (
-    'cogs.maincog',
-    'cogs.systemcog',
-    'cogs.youtubecog',
-    'cogs.twitchcog',
+    'yt_dl_bot.cogs.maincog',
+    'yt_dl_bot.cogs.systemcog',
+    'yt_dl_bot.cogs.youtubecog',
+    'yt_dl_bot.cogs.twitchcog',
 )
 
 
@@ -79,7 +76,10 @@ class ExtensionCommandsTest(unittest.IsolatedAsyncioTestCase):
         self.bot.get_channel.return_value = channel
         self.bot.close = AsyncMock()
 
-        with patch('cogs.systemcog.asyncio.sleep', new=AsyncMock()) as sleep:
+        with patch(
+            'yt_dl_bot.cogs.systemcog.asyncio.sleep',
+            new=AsyncMock(),
+        ) as sleep:
             await SystemCog.botsystem_close.callback(self.cog, self.ctx)
 
         channel.send.assert_awaited_once()
@@ -127,7 +127,7 @@ class ExtensionCommandsTest(unittest.IsolatedAsyncioTestCase):
         )
 
         self.bot.load_extension.assert_has_awaits(
-            [call('cogs.maincog')],
+            [call('yt_dl_bot.cogs.maincog')],
         )
 
     async def test_reload_all_awaits_each_initial_extension_once(self):

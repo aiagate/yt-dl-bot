@@ -1,15 +1,12 @@
-import sys
 import unittest
 from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, Mock
 
 
-SOURCE_PATH = Path(__file__).resolve().parents[1] / 'source'
-sys.path.insert(0, str(SOURCE_PATH))
 
-from cogs.systemcog import SystemCog
-from error_reporting import format_exception_traceback
+from yt_dl_bot.cogs.systemcog import SystemCog
+from yt_dl_bot.error_reporting import format_exception_traceback
 
 
 class SendErrorLogTest(unittest.IsolatedAsyncioTestCase):

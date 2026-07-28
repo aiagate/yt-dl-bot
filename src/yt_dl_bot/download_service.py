@@ -6,7 +6,7 @@ from enum import Enum
 from pathlib import Path
 from typing import Callable, Protocol
 
-from external_error_adapter import youtube_scheduled_delay
+from .external_error_adapter import youtube_scheduled_delay
 
 
 class YoutubeDLFactory(Protocol):

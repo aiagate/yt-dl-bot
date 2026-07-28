@@ -3,7 +3,7 @@
 from dataclasses import dataclass
 from enum import Enum
 
-from url_validation import identify_service
+from .url_validation import identify_service
 
 
 class MessageAction(Enum):

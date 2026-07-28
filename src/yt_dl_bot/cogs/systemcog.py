@@ -7,7 +7,7 @@ import asyncio
 from discord import Embed
 from discord.ext import commands
 
-from error_reporting import (
+from ..error_reporting import (
     format_exception_traceback,
     split_traceback_for_embeds,
 )
@@ -20,7 +20,7 @@ def _extension_names(arguments, initial_extensions):
         extensions = (
             initial_extensions
             if argument == 'all'
-            else ('cogs.' + argument,)
+            else ('yt_dl_bot.cogs.' + argument,)
         )
         for extension in extensions:
             if extension not in names:
