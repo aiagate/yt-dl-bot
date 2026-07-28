@@ -2,6 +2,7 @@ import datetime
 from collections import deque
 from logging import getLogger
 from pathlib import Path
+from typing import Iterable, Protocol, Sequence
 
 import matplotlib.pyplot as plt
 from pytchat import create
@@ -9,22 +10,39 @@ from pytchat import create
 from setting import Settings
 
 
-class ChatDataModule:
-    """Detect chat activity peaks without persisting individual comments."""
+class ChatSource(Protocol):
+    """Source of elapsed-time values from a video's chat."""
 
-    BUCKET_SECONDS = 30
+    def collect_elapsed_times(self, video_id: str) -> Iterable[str]:
+        pass
 
-    def __init__(self, video_id, settings=None):
-        settings = settings or Settings()
-        self.logger = getLogger(__name__)
-        self.video_id = video_id
-        self.url = f'https://youtu.be/{video_id}'
-        date = datetime.datetime.now().strftime('%Y-%m-%d-%H%M')
-        self.image_name = f'scoregraph_{date}_{video_id}.png'
-        self.image_path = Path(settings.TMP_PATH) / self.image_name
+
+class PytchatSource:
+    """Read replay chat through pytchat and release it after collection."""
+
+    def collect_elapsed_times(self, video_id: str) -> list[str]:
+        elapsed_times = []
+        chat = create(video_id=video_id, force_replay=True)
+        try:
+            while chat.is_alive():
+                elapsed_times.extend(
+                    comment.elapsedTime for comment in chat.get().items
+                )
+        finally:
+            chat.terminate()
+        return elapsed_times
+
+
+class HighlightAnalyzer:
+    """Pure chat aggregation, scoring and peak-detection logic."""
+
+    def __init__(self, bucket_seconds: int = 30):
+        self.bucket_seconds = bucket_seconds
 
     @staticmethod
-    def _elapsed_seconds(elapsed_time):
+    def elapsed_seconds(elapsed_time: str) -> int | None:
+        if not isinstance(elapsed_time, str):
+            return None
         parts = elapsed_time.replace(',', '').split(':')
         try:
             values = [int(part) for part in parts]
@@ -39,25 +57,20 @@ class ChatDataModule:
             return values[0]
         return None
 
-    def collect_comment_counts(self):
-        """Return comment counts grouped into 30-second buckets."""
+    def count_comments(self, elapsed_times: Iterable[str]) -> list[int]:
         counts = []
-        chat = create(video_id=self.video_id, force_replay=True)
-        try:
-            while chat.is_alive():
-                for comment in chat.get().items:
-                    elapsed = self._elapsed_seconds(comment.elapsedTime)
-                    if elapsed is None or elapsed < 0:
-                        continue
-                    bucket = elapsed // self.BUCKET_SECONDS
-                    if bucket >= len(counts):
-                        counts.extend([0] * (bucket + 1 - len(counts)))
-                    counts[bucket] += 1
-        finally:
-            chat.terminate()
+        for elapsed_time in elapsed_times:
+            elapsed = self.elapsed_seconds(elapsed_time)
+            if elapsed is None or elapsed < 0:
+                continue
+            bucket = elapsed // self.bucket_seconds
+            if bucket >= len(counts):
+                counts.extend([0] * (bucket + 1 - len(counts)))
+            counts[bucket] += 1
         return counts
 
-    def count_score(self, comment_counts):
+    @staticmethod
+    def count_score(comment_counts: Iterable[int]) -> list[float]:
         score_data = []
         average_count = deque([1000] * 8)
         for comment_count in comment_counts:
@@ -69,18 +82,7 @@ class ChatDataModule:
             score_data.append(score)
         return score_data
 
-    def plot_peak(self, score_data):
-        self.image_path.parent.mkdir(parents=True, exist_ok=True)
-        figure = plt.figure()
-        plt.plot(
-            [index * self.BUCKET_SECONDS for index in range(len(score_data))],
-            score_data,
-        )
-        plt.grid(axis='y', linestyle='dotted')
-        figure.savefig(self.image_path)
-        plt.close(figure)
-
-    def get_peaktime(self, score_data):
+    def peak_times(self, score_data: Sequence[float]) -> list[int]:
         if not score_data or max(score_data) <= 0:
             return []
 
@@ -97,9 +99,101 @@ class ChatDataModule:
                     else:
                         quiet_buckets -= 1
                     index += 1
-                peak_times.append(peak_index * self.BUCKET_SECONDS)
+                peak_times.append(peak_index * self.bucket_seconds)
             index += 1
         return peak_times
+
+
+class GraphRenderer(Protocol):
+    def render(
+        self,
+        score_data: Sequence[float],
+        bucket_seconds: int,
+        image_path: Path,
+    ) -> None:
+        pass
+
+
+class MatplotlibGraphRenderer:
+    """Render activity scores with matplotlib."""
+
+    def render(
+        self,
+        score_data: Sequence[float],
+        bucket_seconds: int,
+        image_path: Path,
+    ) -> None:
+        image_path.parent.mkdir(parents=True, exist_ok=True)
+        figure = plt.figure()
+        try:
+            plt.plot(
+                [index * bucket_seconds for index in range(len(score_data))],
+                score_data,
+            )
+            plt.grid(axis='y', linestyle='dotted')
+            figure.savefig(image_path)
+        finally:
+            plt.close(figure)
+
+
+class Clock(Protocol):
+    def now(self) -> datetime.datetime:
+        pass
+
+
+class SystemClock:
+    def now(self) -> datetime.datetime:
+        return datetime.datetime.now()
+
+
+class ChatDataModule:
+    """Coordinate chat collection, analysis and graph rendering."""
+
+    BUCKET_SECONDS = 30
+
+    def __init__(
+        self,
+        video_id,
+        settings=None,
+        *,
+        chat_source: ChatSource | None = None,
+        analyzer: HighlightAnalyzer | None = None,
+        graph_renderer: GraphRenderer | None = None,
+        clock: Clock | None = None,
+    ):
+        settings = settings or Settings()
+        self.logger = getLogger(__name__)
+        self.video_id = video_id
+        self.url = f'https://youtu.be/{video_id}'
+        self.chat_source = chat_source or PytchatSource()
+        self.analyzer = analyzer or HighlightAnalyzer(self.BUCKET_SECONDS)
+        self.graph_renderer = graph_renderer or MatplotlibGraphRenderer()
+        self.clock = clock or SystemClock()
+        date = self.clock.now().strftime('%Y-%m-%d-%H%M')
+        self.image_name = f'scoregraph_{date}_{video_id}.png'
+        self.image_path = Path(settings.TMP_PATH) / self.image_name
+
+    @staticmethod
+    def _elapsed_seconds(elapsed_time):
+        return HighlightAnalyzer.elapsed_seconds(elapsed_time)
+
+    def collect_comment_counts(self):
+        """Return comment counts grouped into 30-second buckets."""
+        elapsed_times = self.chat_source.collect_elapsed_times(self.video_id)
+        return self.analyzer.count_comments(elapsed_times)
+
+    def count_score(self, comment_counts):
+        return self.analyzer.count_score(comment_counts)
+
+    def plot_peak(self, score_data):
+        self.graph_renderer.render(
+            score_data,
+            self.analyzer.bucket_seconds,
+            self.image_path,
+        )
+
+    def get_peaktime(self, score_data):
+        return self.analyzer.peak_times(score_data)
 
     def get_highlight(self):
         self.logger.info('Collecting chat activity for %s', self.video_id)
