@@ -1,23 +1,21 @@
 #! ./.venv/bin/python
 
 # ---standard library---
-import importlib
 from functools import partial
 
 # ---third party library---
 from discord.ext import commands
 
 # ---local library---
-import ytdlpmodule
+from application_services import TwitchStreamOffline
 from url_validation import validate_service_url
 
 
 class TwitchCog(commands.Cog):
     def __init__(self, bot):
-        importlib.reload(importlib)
-        importlib.reload(ytdlpmodule)
         self.bot = bot
         self.settings = bot.settings
+        self.download_service = bot.services.twitch_download
 
     @staticmethod
     def parse_url(url):
@@ -32,30 +30,31 @@ class TwitchCog(commands.Cog):
     async def download_video(self, ctx, *args, **kwargs):
         url = self.parse_url(args[0])
 
-        ytm = ytdlpmodule.YtdlpModule(settings=self.settings)
-
-        fn = partial(ytm.data_check, url=url, ydl_ops={})
+        fn = partial(self.download_service.check, url)
         try:
             result = await self.bot.loop.run_in_executor(None, fn)
+        except TwitchStreamOffline:
+            await ctx.reply('このチャンネルでライブは始まっていません。')
+            return
         except Exception as e:
-            error = str(e.exc_info[1])
-            if 'The channel is not currently live' in error:
-                await ctx.reply('このチャンネルでライブは始まっていません。')
-                return
             await ctx.invoke(self.bot.get_command('send_error_log'), e)
             raise e
 
         await ctx.reply(result)
 
-        fn = partial(ytm.download_video, url=url)
+        fn = partial(self.download_service.download, url)
         try:
-            info = await self.bot.loop.run_in_executor(None, fn)
+            result = await self.bot.loop.run_in_executor(None, fn)
         except Exception as e:
             await ctx.invoke(self.bot.get_command('send_error_log'), e)
             raise e
         self.bot.logger.info('Download Success!')
         try:
-            await ctx.invoke(self.bot.get_command('send_video_output_log'), info=info, url=url)
+            await ctx.invoke(
+                self.bot.get_command('send_video_output_log'),
+                info=result.info,
+                url=result.url,
+            )
         except Exception as e:
             await ctx.invoke(self.bot.get_command('send_error_log'), e)
             raise e
