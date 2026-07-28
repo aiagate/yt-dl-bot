@@ -1,5 +1,7 @@
 import datetime
+import shutil
 import sys
+import tempfile
 import unittest
 from pathlib import Path
 from unittest.mock import Mock
@@ -11,6 +13,7 @@ PROJECT_ROOT = Path(__file__).resolve().parents[1]
 SOURCE_PATH = PROJECT_ROOT / 'source'
 sys.path.insert(0, str(SOURCE_PATH))
 
+from artifact_discovery import DownloadedArtifacts
 from download_engine import (
     DownloadEngine,
     build_output_name,
@@ -102,6 +105,133 @@ class DownloadPolicyTest(unittest.TestCase):
         )
         with self.assertRaises(yt_dlp.utils.DownloadError):
             generic.data_check('https://example.test/video')
+
+
+class ArtifactStorageTest(unittest.TestCase):
+    def test_partial_move_is_rolled_back_when_later_move_fails(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            tmp_path = root / 'tmp'
+            save_path = root / 'archive'
+            tmp_path.mkdir()
+            video = tmp_path / 'video.mp4'
+            metadata = tmp_path / 'video.info.json'
+            thumbnail = tmp_path / 'video.webp'
+            for artifact in (video, metadata, thumbnail):
+                artifact.write_text(artifact.name)
+
+            move_count = 0
+
+            def fail_on_third_move(source, destination):
+                nonlocal move_count
+                move_count += 1
+                if move_count == 3:
+                    raise OSError('injected thumbnail move failure')
+                return shutil.move(source, destination)
+
+            injected_dependencies = DownloadDependencies(
+                ydl_factory=Mock(),
+                now=lambda: datetime.datetime(2026, 7, 28, 9, 5),
+                sleep=Mock(),
+                path_exists=Path.exists,
+                make_directory=Path.mkdir,
+                move=fail_on_third_move,
+                tmp_path=tmp_path,
+                save_path=save_path,
+            )
+            engine = DownloadEngine(
+                injected_dependencies,
+                youtube_download_policy(),
+            )
+            artifacts = DownloadedArtifacts(
+                video=video,
+                metadata=(metadata,),
+                thumbnails=(thumbnail,),
+            )
+
+            with self.assertRaisesRegex(
+                OSError,
+                'injected thumbnail move failure',
+            ):
+                engine._move_artifacts(artifacts)
+
+            self.assertTrue(all(
+                artifact.exists()
+                for artifact in (video, metadata, thumbnail)
+            ))
+            self.assertFalse((save_path / video.name).exists())
+            self.assertFalse(
+                (save_path / 'metadata' / metadata.name).exists(),
+            )
+            self.assertFalse(
+                (save_path / 'thumbnail' / thumbnail.name).exists(),
+            )
+
+    def test_artifacts_are_moved_to_the_existing_directory_layout(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            tmp_path = root / 'tmp'
+            save_path = root / 'archive'
+            tmp_path.mkdir()
+            video = tmp_path / 'video.mp4'
+            metadata = tmp_path / 'video.info.json'
+            thumbnail = tmp_path / 'video.webp'
+            for artifact in (video, metadata, thumbnail):
+                artifact.write_text(artifact.name)
+            injected_dependencies = DownloadDependencies(
+                ydl_factory=Mock(),
+                now=lambda: datetime.datetime(2026, 7, 28, 9, 5),
+                sleep=Mock(),
+                path_exists=Path.exists,
+                make_directory=Path.mkdir,
+                move=shutil.move,
+                tmp_path=tmp_path,
+                save_path=save_path,
+            )
+            engine = DownloadEngine(
+                injected_dependencies,
+                youtube_download_policy(),
+            )
+
+            engine._move_artifacts(DownloadedArtifacts(
+                video=video,
+                metadata=(metadata,),
+                thumbnails=(thumbnail,),
+            ))
+
+            self.assertTrue((save_path / video.name).exists())
+            self.assertTrue(
+                (save_path / 'metadata' / metadata.name).exists(),
+            )
+            self.assertTrue(
+                (save_path / 'thumbnail' / thumbnail.name).exists(),
+            )
+
+    def test_existing_destination_is_detected_before_any_move(self):
+        injected_dependencies = dependencies(
+            existing={
+                '/archive',
+                '/archive/metadata',
+                '/archive/thumbnail',
+                '/archive/metadata/video.info.json',
+            },
+        )
+        engine = DownloadEngine(
+            injected_dependencies,
+            youtube_download_policy(),
+        )
+
+        with self.assertRaisesRegex(
+            shutil.Error,
+            'Destination path already exists',
+        ):
+            engine._move_artifacts(DownloadedArtifacts(
+                video=Path('/tmp/downloads/video.mp4'),
+                metadata=(Path('/tmp/downloads/video.info.json'),),
+                thumbnails=(Path('/tmp/downloads/video.webp'),),
+            ))
+
+        injected_dependencies.move.assert_not_called()
 
 
 class FacadeStructureTest(unittest.TestCase):

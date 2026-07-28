@@ -179,11 +179,53 @@ class DownloadEngine:
         self.dependencies.ensure_directory(metadata_path)
         self.dependencies.ensure_directory(thumbnail_path)
 
-        self.dependencies.move(artifacts.video, save_path)
-        for metadata in artifacts.metadata:
-            self.dependencies.move(metadata, metadata_path)
-        for thumbnail in artifacts.thumbnails:
-            self.dependencies.move(thumbnail, thumbnail_path)
+        move_plan = [
+            (
+                artifacts.video,
+                save_path,
+                save_path / artifacts.video.name,
+            ),
+            *(
+                (
+                    metadata,
+                    metadata_path,
+                    metadata_path / metadata.name,
+                )
+                for metadata in artifacts.metadata
+            ),
+            *(
+                (
+                    thumbnail,
+                    thumbnail_path,
+                    thumbnail_path / thumbnail.name,
+                )
+                for thumbnail in artifacts.thumbnails
+            ),
+        ]
+        for _, _, destination in move_plan:
+            if self.dependencies.path_exists(destination):
+                raise shutil.Error(
+                    f'Destination path already exists: {destination}',
+                )
+
+        completed_moves = []
+        try:
+            for source, destination_directory, destination in move_plan:
+                self.dependencies.move(source, destination_directory)
+                completed_moves.append((source, destination))
+        except Exception as move_error:
+            rollback_errors = []
+            for source, destination in reversed(completed_moves):
+                try:
+                    self.dependencies.move(destination, source)
+                except Exception as rollback_error:
+                    rollback_errors.append(rollback_error)
+            if rollback_errors:
+                move_error.add_note(
+                    'Failed to roll back one or more artifact moves: '
+                    + '; '.join(str(error) for error in rollback_errors),
+                )
+            raise
 
     def live_timer(self, info):
         if type(info) == dict:
