@@ -22,16 +22,16 @@ class YoutubeCog(commands.Cog):
         self.download_service = bot.services.youtube_download
         self.highlight_service = bot.services.youtube_highlight
 
-    @commands.group(name='youtube')
+    @commands.group(name="youtube")
     async def youtube_cog(self, ctx):
         if ctx.invoked_subcommand is None:
-            await ctx.send('Error: missing option')
+            await ctx.send("Error: missing option")
 
-    @youtube_cog.command(name='download', ignore_extra=False)
+    @youtube_cog.command(name="download", ignore_extra=False)
     async def download_video(self, ctx, url: YoutubeURL):
         text = await asyncio.to_thread(self.download_service.check, url)
 
-        for t in text.split('\n'):
+        for t in text.split("\n"):
             self.bot.logger.info(t)
         await ctx.reply(text)
 
@@ -39,9 +39,9 @@ class YoutubeCog(commands.Cog):
             self.download_service.download,
             url,
         )
-        self.bot.logger.info('Download Success!')
+        self.bot.logger.info("Download Success!")
         await ctx.invoke(
-            self.bot.get_command('send_video_output_log'),
+            self.bot.get_command("send_video_output_log"),
             result=result,
         )
         return
@@ -51,14 +51,14 @@ class YoutubeCog(commands.Cog):
         if await handle_url_argument_error(
             ctx,
             error,
-            usage='youtube download <url>',
+            usage="youtube download <url>",
         ):
             return
-        await ctx.invoke(self.bot.get_command('send_error_log'), error)
+        await ctx.invoke(self.bot.get_command("send_error_log"), error)
 
-    @youtube_cog.command(name='highlight', ignore_extra=False)
+    @youtube_cog.command(name="highlight", ignore_extra=False)
     async def get_highlight(self, ctx, url: YoutubeURL):
-        await ctx.reply('Starting get highlight...')
+        await ctx.reply("Starting get highlight...")
 
         result = await asyncio.to_thread(
             self.highlight_service.create,
@@ -69,13 +69,13 @@ class YoutubeCog(commands.Cog):
         file = await asyncio.to_thread(
             File,
             graph_image,
-            filename='image.png',
+            filename="image.png",
         )
 
         embed = Embed(
             title=result.title,
             description=result.channel_name,
-            color=0xff0000,
+            color=0xFF0000,
         )
         embed.set_thumbnail(url=result.thumbnail_url)
         for field in result.highlight_fields:
@@ -83,7 +83,7 @@ class YoutubeCog(commands.Cog):
         embed.set_image(url="attachment://image.png")
 
         await ctx.invoke(
-            self.bot.get_command('send_highlight_output_log'),
+            self.bot.get_command("send_highlight_output_log"),
             file,
             embed,
         )
@@ -98,10 +98,10 @@ class YoutubeCog(commands.Cog):
         if await handle_url_argument_error(
             ctx,
             error,
-            usage='youtube highlight <url>',
+            usage="youtube highlight <url>",
         ):
             return
-        await ctx.invoke(self.bot.get_command('send_error_log'), error)
+        await ctx.invoke(self.bot.get_command("send_error_log"), error)
 
 
 async def setup(bot):

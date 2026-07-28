@@ -5,17 +5,14 @@ from unittest.mock import AsyncMock, Mock, call, patch
 
 from discord.ext import commands
 
-
-
-from yt_dl_bot.cogs.systemcog import SystemCog
 from yt_dl_bot.application_services import DownloadResult
-
+from yt_dl_bot.cogs.systemcog import SystemCog
 
 INITIAL_EXTENSIONS = (
-    'yt_dl_bot.cogs.maincog',
-    'yt_dl_bot.cogs.systemcog',
-    'yt_dl_bot.cogs.youtubecog',
-    'yt_dl_bot.cogs.twitchcog',
+    "yt_dl_bot.cogs.maincog",
+    "yt_dl_bot.cogs.systemcog",
+    "yt_dl_bot.cogs.youtubecog",
+    "yt_dl_bot.cogs.twitchcog",
 )
 
 
@@ -77,7 +74,7 @@ class ExtensionCommandsTest(unittest.IsolatedAsyncioTestCase):
         self.bot.close = AsyncMock()
 
         with patch(
-            'yt_dl_bot.cogs.systemcog.asyncio.sleep',
+            "yt_dl_bot.cogs.systemcog.asyncio.sleep",
             new=AsyncMock(),
         ) as sleep:
             await SystemCog.botsystem_close.callback(self.cog, self.ctx)
@@ -91,10 +88,10 @@ class ExtensionCommandsTest(unittest.IsolatedAsyncioTestCase):
         channel.send = AsyncMock()
         self.bot.get_channel.return_value = channel
         result = DownloadResult(
-            video_id='video-id',
-            title='Example video',
-            source_url='https://youtu.be/video-id',
-            video_file=Path('/archive/video.mkv'),
+            video_id="video-id",
+            title="Example video",
+            source_url="https://youtu.be/video-id",
+            video_file=Path("/archive/video.mkv"),
             metadata_files=(),
             thumbnail_files=(),
         )
@@ -106,12 +103,11 @@ class ExtensionCommandsTest(unittest.IsolatedAsyncioTestCase):
         )
 
         channel.send.assert_awaited_once_with(
-            '**Download Success : **Example video\n'
-            'https://youtu.be/video-id',
+            "**Download Success : **Example video\nhttps://youtu.be/video-id",
         )
 
     async def test_load_all_awaits_each_initial_extension_once(self):
-        await SystemCog.cogs_load.callback(self.cog, self.ctx, 'all')
+        await SystemCog.cogs_load.callback(self.cog, self.ctx, "all")
 
         self.bot.load_extension.assert_has_awaits(
             [call(extension) for extension in INITIAL_EXTENSIONS],
@@ -123,16 +119,22 @@ class ExtensionCommandsTest(unittest.IsolatedAsyncioTestCase):
 
     async def test_load_awaits_each_unique_extension(self):
         await SystemCog.cogs_load.callback(
-            self.cog, self.ctx, 'maincog', 'maincog',
+            self.cog,
+            self.ctx,
+            "maincog",
+            "maincog",
         )
 
         self.bot.load_extension.assert_has_awaits(
-            [call('yt_dl_bot.cogs.maincog')],
+            [call("yt_dl_bot.cogs.maincog")],
         )
 
     async def test_reload_all_awaits_each_initial_extension_once(self):
         await SystemCog.cogs_reload.callback(
-            self.cog, self.ctx, 'all', 'maincog',
+            self.cog,
+            self.ctx,
+            "all",
+            "maincog",
         )
 
         self.bot.reload_extension.assert_has_awaits(
@@ -145,7 +147,10 @@ class ExtensionCommandsTest(unittest.IsolatedAsyncioTestCase):
 
     async def test_unload_all_force_awaits_each_extension_once(self):
         await SystemCog.cogs_unload.callback(
-            self.cog, self.ctx, 'all', '-f',
+            self.cog,
+            self.ctx,
+            "all",
+            "-f",
         )
 
         self.bot.unload_extension.assert_has_awaits(
@@ -157,7 +162,7 @@ class ExtensionCommandsTest(unittest.IsolatedAsyncioTestCase):
         )
 
     async def test_unload_all_without_force_is_rejected(self):
-        await SystemCog.cogs_unload.callback(self.cog, self.ctx, 'all')
+        await SystemCog.cogs_unload.callback(self.cog, self.ctx, "all")
 
         self.bot.unload_extension.assert_not_awaited()
         self.ctx.send.assert_awaited_once_with(
@@ -166,7 +171,9 @@ class ExtensionCommandsTest(unittest.IsolatedAsyncioTestCase):
 
     async def test_unload_system_cog_without_force_is_rejected(self):
         await SystemCog.cogs_unload.callback(
-            self.cog, self.ctx, 'systemcog',
+            self.cog,
+            self.ctx,
+            "systemcog",
         )
 
         self.bot.unload_extension.assert_not_awaited()
@@ -175,5 +182,5 @@ class ExtensionCommandsTest(unittest.IsolatedAsyncioTestCase):
         )
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

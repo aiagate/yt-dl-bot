@@ -7,14 +7,12 @@ from unittest.mock import Mock
 
 import yt_dlp
 
-
-
+from yt_dl_bot.application_services import VideoDownloadService
 from yt_dl_bot.cancellation import (
     CancellationToken,
     DownloadCancelled,
     to_thread_cancellable,
 )
-from yt_dl_bot.application_services import VideoDownloadService
 from yt_dl_bot.download_engine import (
     DownloadEngine,
     generic_download_policy,
@@ -31,8 +29,8 @@ def dependencies():
         path_exists=Mock(return_value=False),
         make_directory=Mock(),
         move=Mock(),
-        tmp_path=Path('/tmp/downloads'),
-        save_path=Path('/archive'),
+        tmp_path=Path("/tmp/downloads"),
+        save_path=Path("/archive"),
     )
 
 
@@ -45,7 +43,7 @@ class CancellationTokenTest(unittest.TestCase):
 
         with self.assertRaises(DownloadCancelled):
             engine.download_video(
-                'https://example.test/video',
+                "https://example.test/video",
                 cancellation_token=token,
             )
 
@@ -56,22 +54,22 @@ class CancellationTokenTest(unittest.TestCase):
         engine = DownloadEngine(dependencies(), generic_download_policy())
         token = CancellationToken()
         progress_hook = engine.build_options(
-            '/tmp/video.%(ext)s',
+            "/tmp/video.%(ext)s",
             cancellation_token=token,
-        )['progress_hooks'][0]
+        )["progress_hooks"][0]
 
-        progress_hook({'status': 'downloading'})
+        progress_hook({"status": "downloading"})
         token.cancel()
 
         with self.assertRaises(DownloadCancelled):
-            progress_hook({'status': 'downloading'})
+            progress_hook({"status": "downloading"})
 
     def test_normal_options_do_not_install_cancellation_hook(self):
         engine = DownloadEngine(dependencies(), generic_download_policy())
 
-        options = engine.build_options('/tmp/video.%(ext)s')
+        options = engine.build_options("/tmp/video.%(ext)s")
 
-        self.assertNotIn('progress_hooks', options)
+        self.assertNotIn("progress_hooks", options)
 
     def test_cancel_interrupts_scheduled_retry_wait(self):
         waiting = threading.Event()
@@ -88,14 +86,16 @@ class CancellationTokenTest(unittest.TestCase):
                 RetryPolicy(max_attempts=3, max_wait_seconds=600),
             ),
         )
-        info_loader = Mock(side_effect=yt_dlp.utils.DownloadError(
-            'This live event will begin in 5 minutes.',
-        ))
+        info_loader = Mock(
+            side_effect=yt_dlp.utils.DownloadError(
+                "This live event will begin in 5 minutes.",
+            )
+        )
 
         with concurrent.futures.ThreadPoolExecutor() as executor:
             future = executor.submit(
                 engine.download_video,
-                'https://youtu.be/video',
+                "https://youtu.be/video",
                 info_loader,
                 token,
             )
@@ -109,12 +109,12 @@ class CancellationTokenTest(unittest.TestCase):
 
     def test_application_service_does_not_translate_cancellation(self):
         downloader = Mock()
-        cancellation = DownloadCancelled('cancelled')
+        cancellation = DownloadCancelled("cancelled")
         downloader.download_video_cancellable.side_effect = cancellation
 
         with self.assertRaises(DownloadCancelled) as raised:
             VideoDownloadService(downloader).download(
-                'https://example.test/video',
+                "https://example.test/video",
                 cancellation_token=CancellationToken(),
             )
 
@@ -156,5 +156,5 @@ class ThreadCancellationTest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(result, 42)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

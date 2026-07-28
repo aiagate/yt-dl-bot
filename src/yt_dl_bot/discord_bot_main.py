@@ -13,13 +13,9 @@ from discord.ext import commands
 from .application_services import ApplicationServices
 from .setting import Settings
 
-
-LOG_FORMAT = (
-    '[ %(levelname)-8s] %(asctime)s | '
-    '%(name)-16s %(funcName)-24s | %(message)s'
-)
-LOG_DATE_FORMAT = '%Y-%m-%d %H:%M:%S'
-FILE_LOGGERS = ('discord', __name__, 'yt_dl_bot.youtubemodule')
+LOG_FORMAT = "[ %(levelname)-8s] %(asctime)s | %(name)-16s %(funcName)-24s | %(message)s"
+LOG_DATE_FORMAT = "%Y-%m-%d %H:%M:%S"
+FILE_LOGGERS = ("discord", __name__, "yt_dl_bot.youtubemodule")
 
 
 def configure_logging(log_path):
@@ -32,7 +28,7 @@ def configure_logging(log_path):
 
     log_path = Path(log_path)
     log_path.mkdir(parents=True, exist_ok=True)
-    filename = (log_path / 'discord_bot_main.log').resolve()
+    filename = (log_path / "discord_bot_main.log").resolve()
     loggers = [getLogger(name) for name in FILE_LOGGERS]
 
     matching_handlers = []
@@ -50,7 +46,7 @@ def configure_logging(log_path):
     else:
         handler = logging.FileHandler(
             filename=filename,
-            encoding='utf-8',
+            encoding="utf-8",
         )
 
     handler.setLevel(INFO)
@@ -73,37 +69,34 @@ def configure_logging(log_path):
 
 
 class MyBot(commands.Bot):
-
     def __init__(self, command_prefix, settings, services=None):
         # loggerを作成
         self.logger = getLogger(__name__)
         self.settings = settings
         self.services = (
-            services
-            if services is not None
-            else ApplicationServices.from_settings(settings)
+            services if services is not None else ApplicationServices.from_settings(settings)
         )
 
         # スーパークラスのコンストラクタに値を渡して実行。
-        super().__init__(intents=discord.Intents.all(),command_prefix=command_prefix)
-
+        super().__init__(intents=discord.Intents.all(), command_prefix=command_prefix)
 
     async def setup_hook(self):
         # Cogをpropartyのリストからロード
         for cog in self.settings.INITIAL_EXTENSIONS:
             try:
                 await self.load_extension(cog)
-                self.logger.info(f'Success: Cog loaded ({cog})')
+                self.logger.info(f"Success: Cog loaded ({cog})")
             except Exception:
-                self.logger.exception('Failed to load Cog: %s', cog)
+                self.logger.exception("Failed to load Cog: %s", cog)
                 raise
                 # traceback.print_exc()
 
     async def on_ready(self):
-        self.logger.info('----------------')
+        self.logger.info("----------------")
         self.logger.info(self.user.name)
         self.logger.info(self.user.id)
-        self.logger.info('----------------')
+        self.logger.info("----------------")
+
 
 def main(settings=None):
     settings = settings or Settings()
@@ -111,12 +104,12 @@ def main(settings=None):
 
     services = ApplicationServices.from_settings(settings)
     bot = MyBot(
-        command_prefix='!',
+        command_prefix="!",
         settings=settings,
         services=services,
     )
     bot.run(settings.DISCORD_KEY.get_secret_value())
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

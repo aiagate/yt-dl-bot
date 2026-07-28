@@ -1,9 +1,6 @@
 import unittest
-from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, Mock
-
-
 
 from yt_dl_bot.cogs.maincog import MainCog
 from yt_dl_bot.message_router import MessageAction, MessageRoute, MessageRouter
@@ -12,7 +9,7 @@ from yt_dl_bot.message_router import MessageAction, MessageRoute, MessageRouter
 class MessageRouterTest(unittest.TestCase):
     def setUp(self):
         self.router = MessageRouter(
-            command_prefix='!',
+            command_prefix="!",
             download_channel=10,
             highlight_channel=20,
         )
@@ -26,22 +23,22 @@ class MessageRouterTest(unittest.TestCase):
 
     def test_ignores_bot_messages(self):
         self.assertEqual(
-            self.route('!youtube download url', author_is_bot=True),
+            self.route("!youtube download url", author_is_bot=True),
             MessageRoute(MessageAction.IGNORE),
         )
 
     def test_only_leading_prefix_is_a_command(self):
         self.assertEqual(
-            self.route('!youtube download url'),
+            self.route("!youtube download url"),
             MessageRoute(MessageAction.COMMAND),
         )
         self.assertEqual(
-            self.route('ordinary ! message'),
+            self.route("ordinary ! message"),
             MessageRoute(MessageAction.IGNORE),
         )
 
     def test_routes_youtube_by_channel(self):
-        url = 'https://youtu.be/dQw4w9WgXcQ'
+        url = "https://youtu.be/dQw4w9WgXcQ"
 
         self.assertEqual(
             self.route(url, channel=10),
@@ -53,7 +50,7 @@ class MessageRouterTest(unittest.TestCase):
         )
 
     def test_routes_twitch_only_to_download_channel(self):
-        url = 'https://www.twitch.tv/channel'
+        url = "https://www.twitch.tv/channel"
 
         self.assertEqual(
             self.route(url, channel=10),
@@ -65,7 +62,7 @@ class MessageRouterTest(unittest.TestCase):
         )
 
     def test_exclamation_mark_inside_url_is_not_a_command(self):
-        url = 'https://youtu.be/dQw4w9WgXcQ?note=hello!world'
+        url = "https://youtu.be/dQw4w9WgXcQ?note=hello!world"
 
         self.assertEqual(
             self.route(url),
@@ -73,10 +70,10 @@ class MessageRouterTest(unittest.TestCase):
         )
 
     def test_rejects_extra_text_and_unsupported_channels(self):
-        url = 'https://youtu.be/dQw4w9WgXcQ'
+        url = "https://youtu.be/dQw4w9WgXcQ"
 
         self.assertEqual(
-            self.route(f'please download {url}'),
+            self.route(f"please download {url}"),
             MessageRoute(MessageAction.IGNORE),
         )
         self.assertEqual(
@@ -86,7 +83,7 @@ class MessageRouterTest(unittest.TestCase):
 
     def test_supports_multiple_formal_prefixes(self):
         router = MessageRouter(
-            command_prefix=('!', '?'),
+            command_prefix=("!", "?"),
             download_channel=10,
             highlight_channel=20,
         )
@@ -94,7 +91,7 @@ class MessageRouterTest(unittest.TestCase):
         self.assertEqual(
             router.route(
                 author_is_bot=False,
-                content='?youtube download url',
+                content="?youtube download url",
                 channel_id=10,
             ).action,
             MessageAction.COMMAND,
@@ -104,7 +101,7 @@ class MessageRouterTest(unittest.TestCase):
 class MainCogRoutingTest(unittest.IsolatedAsyncioTestCase):
     def make_bot(self):
         bot = Mock()
-        bot.command_prefix = '!'
+        bot.command_prefix = "!"
         bot.settings = SimpleNamespace(
             DOWNLOAD_CHANNEL=10,
             HIGHLIGHT_CHANNEL=20,
@@ -116,7 +113,7 @@ class MainCogRoutingTest(unittest.IsolatedAsyncioTestCase):
 
     async def test_automatic_route_invokes_without_mutating_message(self):
         bot = self.make_bot()
-        command = Mock(name='youtube download')
+        command = Mock(name="youtube download")
         bot.get_command.return_value = command
         ctx = Mock()
         ctx.invoke = AsyncMock()
@@ -124,7 +121,7 @@ class MainCogRoutingTest(unittest.IsolatedAsyncioTestCase):
         message = SimpleNamespace(
             author=SimpleNamespace(bot=False),
             channel=SimpleNamespace(id=10),
-            content='https://youtu.be/dQw4w9WgXcQ?note=hello!world',
+            content="https://youtu.be/dQw4w9WgXcQ?note=hello!world",
         )
         original_content = message.content
         cog = MainCog(bot)
@@ -132,7 +129,7 @@ class MainCogRoutingTest(unittest.IsolatedAsyncioTestCase):
         await cog.on_message(message)
 
         self.assertEqual(message.content, original_content)
-        bot.get_command.assert_called_once_with('youtube download')
+        bot.get_command.assert_called_once_with("youtube download")
         ctx.invoke.assert_awaited_once_with(command, original_content)
         bot.process_commands.assert_not_awaited()
 
@@ -141,7 +138,7 @@ class MainCogRoutingTest(unittest.IsolatedAsyncioTestCase):
         message = SimpleNamespace(
             author=SimpleNamespace(bot=False),
             channel=SimpleNamespace(id=10),
-            content='!youtube download https://youtu.be/dQw4w9WgXcQ',
+            content="!youtube download https://youtu.be/dQw4w9WgXcQ",
         )
 
         await MainCog(bot).on_message(message)
@@ -150,5 +147,5 @@ class MainCogRoutingTest(unittest.IsolatedAsyncioTestCase):
         bot.process_commands.assert_not_awaited()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

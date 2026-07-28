@@ -16,27 +16,27 @@ class ServiceURLConverter(commands.Converter):
             return validate_service_url(argument, self.service)
         except ValueError as error:
             raise commands.BadArgument(
-                f'Invalid {self.service} URL',
+                f"Invalid {self.service} URL",
             ) from error
 
 
 class YoutubeURL(ServiceURLConverter):
-    service = 'youtube'
+    service = "youtube"
 
 
 class TwitchURL(ServiceURLConverter):
-    service = 'twitch'
+    service = "twitch"
 
 
 async def handle_url_argument_error(ctx, error, *, usage):
     """Reply to expected argument errors and return whether handled."""
     if isinstance(error, commands.MissingRequiredArgument):
-        await ctx.reply(f'Error: URL is required. Usage: {usage}')
+        await ctx.reply(f"Error: URL is required. Usage: {usage}")
         return True
     if isinstance(error, commands.TooManyArguments):
-        await ctx.reply(f'Error: too many arguments. Usage: {usage}')
+        await ctx.reply(f"Error: too many arguments. Usage: {usage}")
         return True
     if isinstance(error, commands.BadArgument):
-        await ctx.reply(f'Error: {error}')
+        await ctx.reply(f"Error: {error}")
         return True
     return False

@@ -23,7 +23,7 @@ class CancellationToken:
 
     def raise_if_cancelled(self):
         if self.cancelled:
-            raise DownloadCancelled('Download cancelled')
+            raise DownloadCancelled("Download cancelled")
 
     def wait(self, timeout):
         """Wait for *timeout*, raising when cancellation wakes the wait."""
@@ -34,7 +34,7 @@ class CancellationToken:
 async def to_thread_cancellable(function, /, *args, **kwargs):
     """Run blocking work and signal it when the asyncio caller is cancelled."""
     token = CancellationToken()
-    kwargs['cancellation_token'] = token
+    kwargs["cancellation_token"] = token
     try:
         return await asyncio.to_thread(function, *args, **kwargs)
     except asyncio.CancelledError:

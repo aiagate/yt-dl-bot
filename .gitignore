@@ -12,6 +12,8 @@ source/.env.*
 
 # Python
 __pycache__/
+.coverage
+htmlcov/
 
 venv/
 .venv/

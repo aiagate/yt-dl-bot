@@ -27,8 +27,8 @@ class DownloadDependencies:
     save_path: Path
 
     def __post_init__(self):
-        object.__setattr__(self, 'tmp_path', Path(self.tmp_path))
-        object.__setattr__(self, 'save_path', Path(self.save_path))
+        object.__setattr__(self, "tmp_path", Path(self.tmp_path))
+        object.__setattr__(self, "save_path", Path(self.save_path))
 
     def ensure_directory(self, path):
         path = Path(path)
@@ -37,8 +37,8 @@ class DownloadDependencies:
 
 
 class RetryStatus(Enum):
-    RETRYABLE = 'retryable'
-    PERMANENT_FAILURE = 'permanent_failure'
+    RETRYABLE = "retryable"
+    PERMANENT_FAILURE = "permanent_failure"
 
 
 @dataclass(frozen=True)
@@ -74,9 +74,9 @@ class RetryPolicy:
 
     def __post_init__(self):
         if self.max_attempts < 1:
-            raise ValueError('max_attempts must be at least 1')
+            raise ValueError("max_attempts must be at least 1")
         if self.max_wait_seconds < 0:
-            raise ValueError('max_wait_seconds must not be negative')
+            raise ValueError("max_wait_seconds must not be negative")
 
     def decide(self, error) -> RetryDecision:
         wait_seconds = youtube_scheduled_delay(error)

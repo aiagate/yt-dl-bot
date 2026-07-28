@@ -7,8 +7,12 @@ from unittest.mock import AsyncMock, Mock, patch
 
 import yt_dlp
 
-
-
+from yt_dl_bot.application_errors import (
+    ArtifactStorageError,
+    HighlightCreationError,
+    VideoCheckError,
+    VideoDownloadError,
+)
 from yt_dl_bot.application_services import (
     DownloadResult,
     HighlightResult,
@@ -18,66 +22,56 @@ from yt_dl_bot.application_services import (
     YoutubeHighlightService,
     split_highlight_text,
 )
-from yt_dl_bot.application_errors import (
-    ArtifactStorageError,
-    HighlightCreationError,
-    VideoCheckError,
-    VideoDownloadError,
-)
+from yt_dl_bot.artifact_discovery import DownloadedArtifacts
+from yt_dl_bot.cancellation import CancellationToken
 from yt_dl_bot.cogs.twitchcog import TwitchCog
 from yt_dl_bot.cogs.youtubecog import YoutubeCog
-from yt_dl_bot.cancellation import CancellationToken
-from yt_dl_bot.artifact_discovery import DownloadedArtifacts
 from yt_dl_bot.download_engine import DownloadOutcome
 
 
 class VideoDownloadServiceTest(unittest.TestCase):
     def test_success_flow_delegates_and_returns_domain_result(self):
         downloader = Mock()
-        downloader.data_check.return_value = 'ready'
+        downloader.data_check.return_value = "ready"
         downloader.download_video.return_value = DownloadOutcome(
-            video_id='video',
-            title='Example video',
-            source_url='https://example.test',
+            video_id="video",
+            title="Example video",
+            source_url="https://example.test",
             artifacts=DownloadedArtifacts(
-                video=Path('/archive/video.mkv'),
-                metadata=(Path('/archive/metadata/video.info.json'),),
-                thumbnails=(Path('/archive/thumbnail/video.webp'),),
+                video=Path("/archive/video.mkv"),
+                metadata=(Path("/archive/metadata/video.info.json"),),
+                thumbnails=(Path("/archive/thumbnail/video.webp"),),
             ),
         )
         service = VideoDownloadService(downloader)
 
-        self.assertEqual(service.check('https://example.test'), 'ready')
+        self.assertEqual(service.check("https://example.test"), "ready")
         self.assertEqual(
-            service.download('https://example.test'),
+            service.download("https://example.test"),
             DownloadResult(
-                video_id='video',
-                title='Example video',
-                source_url='https://example.test',
-                video_file=Path('/archive/video.mkv'),
-                metadata_files=(
-                    Path('/archive/metadata/video.info.json'),
-                ),
-                thumbnail_files=(
-                    Path('/archive/thumbnail/video.webp'),
-                ),
+                video_id="video",
+                title="Example video",
+                source_url="https://example.test",
+                video_file=Path("/archive/video.mkv"),
+                metadata_files=(Path("/archive/metadata/video.info.json"),),
+                thumbnail_files=(Path("/archive/thumbnail/video.webp"),),
             ),
         )
         downloader.data_check.assert_called_once_with(
-            url='https://example.test',
+            url="https://example.test",
         )
         downloader.download_video.assert_called_once_with(
-            url='https://example.test',
+            url="https://example.test",
         )
 
     def test_download_failure_is_propagated(self):
         downloader = Mock()
-        failure = yt_dlp.utils.DownloadError('download failed')
+        failure = yt_dlp.utils.DownloadError("download failed")
         downloader.download_video.side_effect = failure
 
         with self.assertRaises(VideoDownloadError) as raised:
             VideoDownloadService(downloader).download(
-                'https://example.test',
+                "https://example.test",
             )
 
         self.assertIs(raised.exception.original_error, failure)
@@ -86,11 +80,11 @@ class VideoDownloadServiceTest(unittest.TestCase):
     def test_cancellable_download_uses_explicit_adapter_boundary(self):
         downloader = Mock()
         downloader.download_video_cancellable.return_value = DownloadOutcome(
-            video_id='video',
-            title='Example video',
-            source_url='https://example.test',
+            video_id="video",
+            title="Example video",
+            source_url="https://example.test",
             artifacts=DownloadedArtifacts(
-                video=Path('/archive/video.mkv'),
+                video=Path("/archive/video.mkv"),
                 metadata=(),
                 thumbnails=(),
             ),
@@ -98,15 +92,15 @@ class VideoDownloadServiceTest(unittest.TestCase):
         token = CancellationToken()
 
         result = VideoDownloadService(downloader).download(
-            'https://example.test',
+            "https://example.test",
             cancellation_token=token,
         )
 
-        self.assertEqual(result.video_id, 'video')
-        self.assertEqual(result.title, 'Example video')
+        self.assertEqual(result.video_id, "video")
+        self.assertEqual(result.title, "Example video")
         downloader.download_video.assert_not_called()
         downloader.download_video_cancellable.assert_called_once_with(
-            url='https://example.test',
+            url="https://example.test",
             cancellation_token=token,
         )
 
@@ -114,45 +108,45 @@ class VideoDownloadServiceTest(unittest.TestCase):
         downloader = Mock()
 
         def fail_download(*, url):
-            raise OSError(f'adapter failure for {url}')
+            raise OSError(f"adapter failure for {url}")
 
         downloader.download_video.side_effect = fail_download
 
         with self.assertRaises(VideoDownloadError) as raised:
             VideoDownloadService(downloader).download(
-                'https://example.test',
+                "https://example.test",
             )
 
         cause = raised.exception.__cause__
         self.assertIsInstance(cause, OSError)
         self.assertIsNotNone(cause.__traceback__)
-        formatted = ''.join(traceback.format_exception(raised.exception))
-        self.assertIn('fail_download', formatted)
+        formatted = "".join(traceback.format_exception(raised.exception))
+        self.assertIn("fail_download", formatted)
         self.assertIn(
-            'The above exception was the direct cause',
+            "The above exception was the direct cause",
             formatted,
         )
 
     def test_unexpected_download_failure_is_not_translated(self):
         downloader = Mock()
-        failure = RuntimeError('programming error')
+        failure = RuntimeError("programming error")
         downloader.download_video.side_effect = failure
 
         with self.assertRaises(RuntimeError) as raised:
             VideoDownloadService(downloader).download(
-                'https://example.test',
+                "https://example.test",
             )
 
         self.assertIs(raised.exception, failure)
 
     def test_unexpected_check_failure_is_not_translated(self):
         downloader = Mock()
-        failure = AttributeError('broken adapter implementation')
+        failure = AttributeError("broken adapter implementation")
         downloader.data_check.side_effect = failure
 
         with self.assertRaises(AttributeError) as raised:
             VideoDownloadService(downloader).check(
-                'https://example.test',
+                "https://example.test",
             )
 
         self.assertIs(raised.exception, failure)
@@ -161,31 +155,31 @@ class VideoDownloadServiceTest(unittest.TestCase):
 class TwitchDownloadServiceTest(unittest.TestCase):
     def test_offline_error_is_translated(self):
         downloader = Mock()
-        error = yt_dlp.utils.DownloadError('extract failed')
+        error = yt_dlp.utils.DownloadError("extract failed")
         error.exc_info = (
             None,
-            RuntimeError('The channel is not currently live'),
+            RuntimeError("The channel is not currently live"),
             None,
         )
         downloader.data_check.side_effect = error
 
         with self.assertRaises(TwitchStreamOffline):
             TwitchDownloadService(downloader).check(
-                'https://www.twitch.tv/channel',
+                "https://www.twitch.tv/channel",
             )
 
         downloader.data_check.assert_called_once_with(
-            url='https://www.twitch.tv/channel',
+            url="https://www.twitch.tv/channel",
         )
 
     def test_other_error_is_propagated(self):
         downloader = Mock()
-        error = yt_dlp.utils.DownloadError('network failed')
+        error = yt_dlp.utils.DownloadError("network failed")
         downloader.data_check.side_effect = error
 
         with self.assertRaises(VideoCheckError) as raised:
             TwitchDownloadService(downloader).check(
-                'https://www.twitch.tv/channel',
+                "https://www.twitch.tv/channel",
             )
 
         self.assertIs(raised.exception.original_error, error)
@@ -193,12 +187,12 @@ class TwitchDownloadServiceTest(unittest.TestCase):
 
     def test_unexpected_error_is_not_translated(self):
         downloader = Mock()
-        error = TypeError('broken adapter implementation')
+        error = TypeError("broken adapter implementation")
         downloader.data_check.side_effect = error
 
         with self.assertRaises(TypeError) as raised:
             TwitchDownloadService(downloader).check(
-                'https://www.twitch.tv/channel',
+                "https://www.twitch.tv/channel",
             )
 
         self.assertIs(raised.exception, error)
@@ -207,35 +201,35 @@ class TwitchDownloadServiceTest(unittest.TestCase):
 class HighlightServiceTest(unittest.TestCase):
     def test_create_returns_discord_independent_highlight_result(self):
         youtube = Mock()
-        youtube.get_videoid.return_value = 'video-id'
+        youtube.get_videoid.return_value = "video-id"
         youtube.get_info.return_value = {
-            'title': 'Title',
-            'fulltitle': 'Full title',
-            'channel': 'Channel',
-            'thumbnail': 'https://example.test/thumb.jpg',
+            "title": "Title",
+            "fulltitle": "Full title",
+            "channel": "Channel",
+            "thumbnail": "https://example.test/thumb.jpg",
         }
         chat = Mock()
-        chat.image_path = '/tmp/graph.png'
+        chat.image_path = "/tmp/graph.png"
         chat.get_highlight.return_value = [
-            [30, 'https://youtu.be/video-id?t=30s'],
-            [90, 'https://youtu.be/video-id?t=90s'],
+            [30, "https://youtu.be/video-id?t=30s"],
+            [90, "https://youtu.be/video-id?t=90s"],
         ]
         service = YoutubeHighlightService(
-            settings=SimpleNamespace(GRAPH_SAVE_PATH='/graphs/'),
+            settings=SimpleNamespace(GRAPH_SAVE_PATH="/graphs/"),
             youtube=youtube,
             chat_factory=Mock(return_value=chat),
         )
 
-        result = service.create('https://youtu.be/video-id')
+        result = service.create("https://youtu.be/video-id")
 
-        self.assertEqual(result.title, 'Full title')
-        self.assertEqual(result.channel_name, 'Channel')
-        self.assertEqual(result.graph_image, Path('/tmp/graph.png'))
+        self.assertEqual(result.title, "Full title")
+        self.assertEqual(result.channel_name, "Channel")
+        self.assertEqual(result.graph_image, Path("/tmp/graph.png"))
         self.assertEqual(
             result.highlight_fields,
             (
-                '0:00:30\thttps://youtu.be/video-id?t=30s\n'
-                '0:01:30\thttps://youtu.be/video-id?t=90s\n',
+                "0:00:30\thttps://youtu.be/video-id?t=30s\n"
+                "0:01:30\thttps://youtu.be/video-id?t=90s\n",
             ),
         )
 
@@ -243,78 +237,75 @@ class HighlightServiceTest(unittest.TestCase):
         mkdir = Mock()
         move = Mock()
         service = YoutubeHighlightService(
-            settings=SimpleNamespace(GRAPH_SAVE_PATH='/graphs/'),
+            settings=SimpleNamespace(GRAPH_SAVE_PATH="/graphs/"),
             youtube=Mock(),
             path_exists=Mock(return_value=False),
             make_directory=mkdir,
             move=move,
         )
 
-        service.archive_graph('/tmp/graph.png')
+        service.archive_graph("/tmp/graph.png")
 
         mkdir.assert_called_once_with(
-            Path('/graphs'),
+            Path("/graphs"),
             parents=True,
             exist_ok=True,
         )
         move.assert_called_once_with(
-            Path('/tmp/graph.png'),
-            Path('/graphs'),
+            Path("/tmp/graph.png"),
+            Path("/graphs"),
         )
 
     def test_highlight_external_failure_is_typed(self):
         youtube = Mock()
-        failure = yt_dlp.utils.DownloadError('yt-dlp failed')
+        failure = yt_dlp.utils.DownloadError("yt-dlp failed")
         youtube.get_videoid.side_effect = failure
         service = YoutubeHighlightService(
-            settings=SimpleNamespace(GRAPH_SAVE_PATH='/graphs/'),
+            settings=SimpleNamespace(GRAPH_SAVE_PATH="/graphs/"),
             youtube=youtube,
         )
 
         with self.assertRaises(HighlightCreationError) as raised:
-            service.create('https://youtu.be/video')
+            service.create("https://youtu.be/video")
 
         self.assertIs(raised.exception.__cause__, failure)
 
     def test_unexpected_highlight_failure_is_not_translated(self):
         youtube = Mock()
-        failure = AttributeError('broken highlight implementation')
+        failure = AttributeError("broken highlight implementation")
         youtube.get_videoid.side_effect = failure
         service = YoutubeHighlightService(
-            settings=SimpleNamespace(GRAPH_SAVE_PATH='/graphs/'),
+            settings=SimpleNamespace(GRAPH_SAVE_PATH="/graphs/"),
             youtube=youtube,
         )
 
         with self.assertRaises(AttributeError) as raised:
-            service.create('https://youtu.be/video')
+            service.create("https://youtu.be/video")
 
         self.assertIs(raised.exception, failure)
 
     def test_filesystem_failure_is_typed(self):
-        failure = OSError('disk full')
+        failure = OSError("disk full")
         service = YoutubeHighlightService(
-            settings=SimpleNamespace(GRAPH_SAVE_PATH='/graphs/'),
+            settings=SimpleNamespace(GRAPH_SAVE_PATH="/graphs/"),
             youtube=Mock(),
             path_exists=Mock(return_value=True),
             move=Mock(side_effect=failure),
         )
 
         with self.assertRaises(ArtifactStorageError) as raised:
-            service.archive_graph('/tmp/graph.png')
+            service.archive_graph("/tmp/graph.png")
 
         self.assertIs(raised.exception.__cause__, failure)
 
     def test_empty_highlights_get_a_placeholder(self):
         self.assertEqual(
             split_highlight_text([]),
-            ('does not get highlight',),
+            ("does not get highlight",),
         )
 
     def test_highlight_text_is_split_before_field_limit(self):
-        highlights = [
-            (index, f'https://example.test/{index}/' + ('x' * 30))
-            for index in range(10)
-        ]
+        highlights = [(index, f"https://example.test/{index}/" + ("x" * 30)) for index in range(10)]
 
         fields = split_highlight_text(highlights, max_length=120)
 
@@ -323,19 +314,17 @@ class HighlightServiceTest(unittest.TestCase):
 
     def test_single_line_at_field_limit_boundaries_is_always_safe(self):
         max_length = 40
-        line_prefix = '0:00:01\t'
+        line_prefix = "0:00:01\t"
         newline_length = 1
         cases = (
-            ('max_length_minus_one', max_length - 1, max_length - 1),
-            ('exactly_max_length', max_length, max_length - 1),
-            ('single_line_over_limit', max_length + 10, max_length - 1),
+            ("max_length_minus_one", max_length - 1, max_length - 1),
+            ("exactly_max_length", max_length, max_length - 1),
+            ("single_line_over_limit", max_length + 10, max_length - 1),
         )
 
         for name, line_length, expected_length in cases:
             with self.subTest(name=name):
-                url = 'x' * (
-                    line_length - len(line_prefix) - newline_length
-                )
+                url = "x" * (line_length - len(line_prefix) - newline_length)
 
                 fields = split_highlight_text(
                     [(1, url)],
@@ -370,12 +359,12 @@ class CogDelegationTest(unittest.IsolatedAsyncioTestCase):
 
     async def test_youtube_cog_only_coordinates_download_responses(self):
         bot = self.make_bot()
-        bot.services.youtube_download.check.return_value = 'ready'
+        bot.services.youtube_download.check.return_value = "ready"
         result = DownloadResult(
-            video_id='video',
-            title='Example video',
-            source_url='https://youtu.be/video',
-            video_file=Path('/archive/video.mkv'),
+            video_id="video",
+            title="Example video",
+            source_url="https://youtu.be/video",
+            video_file=Path("/archive/video.mkv"),
             metadata_files=(),
             thumbnail_files=(),
         )
@@ -386,11 +375,11 @@ class CogDelegationTest(unittest.IsolatedAsyncioTestCase):
         cog = YoutubeCog(bot)
 
         to_thread = self.to_thread_mock()
-        with patch('asyncio.to_thread', to_thread):
+        with patch("asyncio.to_thread", to_thread):
             await YoutubeCog.download_video.callback(
                 cog,
                 ctx,
-                'https://youtu.be/video',
+                "https://youtu.be/video",
             )
 
         self.assertEqual(to_thread.await_count, 2)
@@ -403,15 +392,15 @@ class CogDelegationTest(unittest.IsolatedAsyncioTestCase):
             bot.services.youtube_download.download,
         )
         bot.services.youtube_download.check.assert_called_once_with(
-            'https://youtu.be/video',
+            "https://youtu.be/video",
         )
         bot.services.youtube_download.download.assert_called_once_with(
-            'https://youtu.be/video',
+            "https://youtu.be/video",
             cancellation_token=unittest.mock.ANY,
         )
-        ctx.reply.assert_awaited_once_with('ready')
+        ctx.reply.assert_awaited_once_with("ready")
         ctx.invoke.assert_awaited_once_with(
-            'send_video_output_log',
+            "send_video_output_log",
             result=result,
         )
 
@@ -424,15 +413,15 @@ class CogDelegationTest(unittest.IsolatedAsyncioTestCase):
         cog = TwitchCog(bot)
 
         to_thread = self.to_thread_mock()
-        with patch('asyncio.to_thread', to_thread):
+        with patch("asyncio.to_thread", to_thread):
             await TwitchCog.download_video.callback(
                 cog,
                 ctx,
-                'https://www.twitch.tv/channel',
+                "https://www.twitch.tv/channel",
             )
 
         ctx.reply.assert_awaited_once_with(
-            'このチャンネルでライブは始まっていません。',
+            "このチャンネルでライブは始まっていません。",
         )
         bot.services.twitch_download.download.assert_not_called()
         ctx.invoke.assert_not_awaited()
@@ -440,11 +429,11 @@ class CogDelegationTest(unittest.IsolatedAsyncioTestCase):
     async def test_youtube_cog_converts_highlight_result_to_discord_types(self):
         bot = self.make_bot()
         result = HighlightResult(
-            title='Title',
-            channel_name='Channel',
-            thumbnail_url='https://example.test/thumb.jpg',
-            graph_image='/tmp/graph.png',
-            highlight_fields=('field one', 'field two'),
+            title="Title",
+            channel_name="Channel",
+            thumbnail_url="https://example.test/thumb.jpg",
+            graph_image="/tmp/graph.png",
+            highlight_fields=("field one", "field two"),
         )
         bot.services.youtube_highlight.create.return_value = result
         ctx = Mock()
@@ -455,34 +444,34 @@ class CogDelegationTest(unittest.IsolatedAsyncioTestCase):
 
         with (
             patch(
-                'yt_dl_bot.cogs.youtubecog.File',
-                return_value='discord-file',
+                "yt_dl_bot.cogs.youtubecog.File",
+                return_value="discord-file",
             ) as file_factory,
-            patch('yt_dl_bot.cogs.youtubecog.Embed', return_value=embed),
-            patch('asyncio.to_thread', self.to_thread_mock()) as to_thread,
+            patch("yt_dl_bot.cogs.youtubecog.Embed", return_value=embed),
+            patch("asyncio.to_thread", self.to_thread_mock()) as to_thread,
         ):
             await YoutubeCog.get_highlight.callback(
                 cog,
                 ctx,
-                'https://youtu.be/video',
+                "https://youtu.be/video",
             )
 
         bot.services.youtube_highlight.create.assert_called_once_with(
-            'https://youtu.be/video',
+            "https://youtu.be/video",
         )
         bot.services.youtube_highlight.archive_graph.assert_called_once_with(
-            '/tmp/graph.png',
+            "/tmp/graph.png",
         )
         self.assertEqual(
             embed.add_field.call_args_list,
             [
-                unittest.mock.call(name='highlight', value='field one'),
-                unittest.mock.call(name='highlight', value='field two'),
+                unittest.mock.call(name="highlight", value="field one"),
+                unittest.mock.call(name="highlight", value="field two"),
             ],
         )
         ctx.invoke.assert_awaited_once_with(
-            'send_highlight_output_log',
-            'discord-file',
+            "send_highlight_output_log",
+            "discord-file",
             embed,
         )
         self.assertEqual(to_thread.await_count, 3)
@@ -505,13 +494,13 @@ class CogDelegationTest(unittest.IsolatedAsyncioTestCase):
         to_thread = AsyncMock(side_effect=asyncio.CancelledError)
 
         with (
-            patch('asyncio.to_thread', to_thread),
+            patch("asyncio.to_thread", to_thread),
             self.assertRaises(asyncio.CancelledError),
         ):
             await YoutubeCog.download_video.callback(
                 cog,
                 ctx,
-                'https://youtu.be/video',
+                "https://youtu.be/video",
             )
 
         bot.services.youtube_download.download.assert_not_called()
@@ -521,8 +510,8 @@ class CogDelegationTest(unittest.IsolatedAsyncioTestCase):
     async def test_command_failure_is_notified_once_by_error_handler(self):
         bot = self.make_bot()
         failure = VideoCheckError(
-            'Unable to check video',
-            original_error=RuntimeError('yt-dlp failed'),
+            "Unable to check video",
+            original_error=RuntimeError("yt-dlp failed"),
         )
         bot.services.youtube_download.check.side_effect = failure
         ctx = Mock()
@@ -531,13 +520,13 @@ class CogDelegationTest(unittest.IsolatedAsyncioTestCase):
         cog = YoutubeCog(bot)
 
         with (
-            patch('asyncio.to_thread', self.to_thread_mock()),
+            patch("asyncio.to_thread", self.to_thread_mock()),
             self.assertRaises(VideoCheckError),
         ):
             await YoutubeCog.download_video.callback(
                 cog,
                 ctx,
-                'https://youtu.be/video',
+                "https://youtu.be/video",
             )
 
         ctx.invoke.assert_not_awaited()
@@ -549,10 +538,10 @@ class CogDelegationTest(unittest.IsolatedAsyncioTestCase):
         )
 
         ctx.invoke.assert_awaited_once_with(
-            'send_error_log',
+            "send_error_log",
             failure,
         )
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

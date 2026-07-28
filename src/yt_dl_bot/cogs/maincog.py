@@ -17,7 +17,7 @@ class MainCog(commands.Cog):
             highlight_channel=self.settings.HIGHLIGHT_CHANNEL,
         )
 
-    @commands.Cog.listener(name='on_message')
+    @commands.Cog.listener(name="on_message")
     async def on_message(self, message):
         route = self.router.route(
             author_is_bot=message.author.bot,
@@ -32,13 +32,13 @@ class MainCog(commands.Cog):
         command = self.bot.get_command(route.action.command_name)
         if command is None:
             self.bot.logger.error(
-                'Automatic route command is not loaded: %s',
+                "Automatic route command is not loaded: %s",
                 route.action.command_name,
             )
             return
 
         self.bot.logger.info(
-            'Automatic route: %s',
+            "Automatic route: %s",
             route.action.command_name,
         )
         ctx = await self.bot.get_context(message)
