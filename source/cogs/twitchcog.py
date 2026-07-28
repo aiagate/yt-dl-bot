@@ -70,5 +70,5 @@ class TwitchCog(commands.Cog):
     async def download_video_error(self, ctx, error):
         await ctx.invoke(self.bot.get_command('send_error_log'), error)
 
-def setup(bot):
-    return bot.add_cog(TwitchCog(bot))
+async def setup(bot):
+    await bot.add_cog(TwitchCog(bot))

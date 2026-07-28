@@ -57,5 +57,5 @@ class MainCog(commands.Cog):
         return
 
 
-def setup(bot):
-    return bot.add_cog(MainCog(bot))
+async def setup(bot):
+    await bot.add_cog(MainCog(bot))

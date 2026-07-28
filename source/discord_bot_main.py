@@ -23,7 +23,7 @@ class MyBot(commands.Bot):
         super().__init__(intents=discord.Intents.all(),command_prefix=command_prefix)
 
 
-    async def on_ready(self):
+    async def setup_hook(self):
         # Cogをpropartyのリストからロード
         for cog in property.INITIAL_EXTENSIONS:
             try:
@@ -33,6 +33,8 @@ class MyBot(commands.Bot):
                 self.logger.error(e)
                 raise e
                 # traceback.print_exc()
+
+    async def on_ready(self):
         self.logger.info('----------------')
         self.logger.info(self.user.name)
         self.logger.info(self.user.id)
