@@ -10,6 +10,7 @@ from pathlib import Path
 import yt_dlp
 
 # ---local library---
+from artifact_discovery import discover_download_artifacts
 from download_service import (
     DownloadDependencies,
     DownloadRetryLimitExceeded,
@@ -128,23 +129,27 @@ class YoutubeModule():
                 self.ops(info=info, outpath=str(outpath)),
             ) as ydl:
                 info = ydl.extract_info(url, download=True)
+                artifacts = discover_download_artifacts(
+                    info=info,
+                    ydl=ydl,
+                    output_stem=tmp_path / title,
+                    path_exists=self.dependencies.path_exists,
+                    require_metadata=True,
+                    require_thumbnail=True,
+                )
 
             #ファイルをcacheフォルダから移動
             save_path = self.dependencies.save_path
             metadata_path = save_path / 'metadata'
             thumbnail_path = save_path / 'thumbnail'
             self.dependencies.ensure_directory(save_path)
-            self.dependencies.move(tmp_path / f'{title}.mp4', save_path)
+            self.dependencies.move(artifacts.video, save_path)
             self.dependencies.ensure_directory(metadata_path)
-            self.dependencies.move(
-                tmp_path / f'{title}.info.json',
-                metadata_path,
-            )
+            for metadata in artifacts.metadata:
+                self.dependencies.move(metadata, metadata_path)
             self.dependencies.ensure_directory(thumbnail_path)
-            self.dependencies.move(
-                tmp_path / f'{title}.webp',
-                thumbnail_path,
-            )
+            for thumbnail in artifacts.thumbnails:
+                self.dependencies.move(thumbnail, thumbnail_path)
             return info
     def get_info(self, url):
         with self.dependencies.ydl_factory() as ydl:
