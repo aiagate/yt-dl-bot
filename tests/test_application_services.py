@@ -145,7 +145,7 @@ class HighlightServiceTest(unittest.TestCase):
 
         self.assertEqual(result.title, 'Full title')
         self.assertEqual(result.channel_name, 'Channel')
-        self.assertEqual(result.graph_image, '/tmp/graph.png')
+        self.assertEqual(result.graph_image, Path('/tmp/graph.png'))
         self.assertEqual(
             result.highlight_fields,
             (
@@ -167,8 +167,15 @@ class HighlightServiceTest(unittest.TestCase):
 
         service.archive_graph('/tmp/graph.png')
 
-        mkdir.assert_called_once_with('/graphs/')
-        move.assert_called_once_with('/tmp/graph.png', '/graphs/')
+        mkdir.assert_called_once_with(
+            Path('/graphs'),
+            parents=True,
+            exist_ok=True,
+        )
+        move.assert_called_once_with(
+            Path('/tmp/graph.png'),
+            Path('/graphs'),
+        )
 
     def test_highlight_external_failure_is_typed(self):
         youtube = Mock()

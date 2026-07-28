@@ -54,12 +54,24 @@ class ApplicationSettingsTest(unittest.IsolatedAsyncioTestCase):
         first_chat = ChatDataModule('video', settings=first)
         second_chat = ChatDataModule('video', settings=second)
 
-        self.assertEqual(first_youtube.dependencies.tmp_path, '/first/cache/')
-        self.assertEqual(first_youtube.dependencies.save_path, '/first/archive/')
-        self.assertEqual(second_ytdlp.dependencies.tmp_path, '/second/cache/')
-        self.assertEqual(second_ytdlp.dependencies.save_path, '/second/archive/')
-        self.assertTrue(first_chat.image_path.startswith('/first/cache/'))
-        self.assertTrue(second_chat.image_path.startswith('/second/cache/'))
+        self.assertEqual(
+            first_youtube.dependencies.tmp_path,
+            Path('/first/cache'),
+        )
+        self.assertEqual(
+            first_youtube.dependencies.save_path,
+            Path('/first/archive'),
+        )
+        self.assertEqual(
+            second_ytdlp.dependencies.tmp_path,
+            Path('/second/cache'),
+        )
+        self.assertEqual(
+            second_ytdlp.dependencies.save_path,
+            Path('/second/archive'),
+        )
+        self.assertEqual(first_chat.image_path.parent, Path('/first/cache'))
+        self.assertEqual(second_chat.image_path.parent, Path('/second/cache'))
 
     def test_property_compatibility_module_has_no_environment_side_effect(self):
         property_path = SOURCE_PATH / 'property.py'

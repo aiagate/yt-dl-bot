@@ -3,6 +3,7 @@
 from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
+from pathlib import Path
 from typing import Callable, Protocol
 
 from external_error_adapter import youtube_scheduled_delay
@@ -19,11 +20,20 @@ class DownloadDependencies:
     ydl_factory: YoutubeDLFactory
     now: Callable[[], datetime]
     sleep: Callable[[float], None]
-    path_exists: Callable[[str], bool]
-    make_directory: Callable[[str], None]
-    move: Callable[[str, str], object]
-    tmp_path: str
-    save_path: str
+    path_exists: Callable[[Path], bool]
+    make_directory: Callable[..., None]
+    move: Callable[[Path, Path], object]
+    tmp_path: Path
+    save_path: Path
+
+    def __post_init__(self):
+        object.__setattr__(self, 'tmp_path', Path(self.tmp_path))
+        object.__setattr__(self, 'save_path', Path(self.save_path))
+
+    def ensure_directory(self, path):
+        path = Path(path)
+        if not self.path_exists(path):
+            self.make_directory(path, parents=True, exist_ok=True)
 
 
 class RetryStatus(Enum):

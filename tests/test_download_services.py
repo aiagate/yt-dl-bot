@@ -49,7 +49,9 @@ class DownloadModuleTestCase:
         }
         self.ydl_instances = []
         self.existing_paths = set()
-        self.mkdir = Mock(side_effect=self.existing_paths.add)
+        self.mkdir = Mock(
+            side_effect=lambda path, **kwargs: self.existing_paths.add(path),
+        )
         self.move = Mock()
         self.sleep = Mock()
 
@@ -65,8 +67,8 @@ class DownloadModuleTestCase:
             path_exists=lambda path: path in self.existing_paths,
             make_directory=self.mkdir,
             move=self.move,
-            tmp_path='/tmp/downloads/',
-            save_path='/archive/',
+            tmp_path='/tmp/downloads',
+            save_path='/archive',
         )
         self.module = self.module_type(self.dependencies)
 
@@ -101,25 +103,46 @@ class YoutubeModuleBoundaryTest(DownloadModuleTestCase, unittest.TestCase):
             self.move.call_args_list,
             [
                 call(
-                    '/tmp/downloads/2026-07-28-0905_video：id.mp4',
-                    '/archive/',
+                    Path('/tmp/downloads/2026-07-28-0905_video：id.mp4'),
+                    Path('/archive'),
                 ),
                 call(
-                    '/tmp/downloads/2026-07-28-0905_video：id.info.json',
-                    '/archive/metadata/',
+                    Path('/tmp/downloads/2026-07-28-0905_video：id.info.json'),
+                    Path('/archive/metadata'),
                 ),
                 call(
-                    '/tmp/downloads/2026-07-28-0905_video：id.webp',
-                    '/archive/thumbnail/',
+                    Path('/tmp/downloads/2026-07-28-0905_video：id.webp'),
+                    Path('/archive/thumbnail'),
                 ),
             ],
         )
         self.mkdir.assert_has_calls([
-            call('/tmp/downloads/'),
-            call('/archive/'),
-            call('/archive/metadata/'),
-            call('/archive/thumbnail/'),
+            call(Path('/tmp/downloads'), parents=True, exist_ok=True),
+            call(Path('/archive'), parents=True, exist_ok=True),
+            call(Path('/archive/metadata'), parents=True, exist_ok=True),
+            call(Path('/archive/thumbnail'), parents=True, exist_ok=True),
         ])
+
+    def test_trailing_slash_does_not_change_configured_paths(self):
+        with_slashes = DownloadDependencies(
+            ydl_factory=self.dependencies.ydl_factory,
+            now=self.dependencies.now,
+            sleep=self.sleep,
+            path_exists=self.dependencies.path_exists,
+            make_directory=self.mkdir,
+            move=self.move,
+            tmp_path='/tmp/downloads/',
+            save_path='/archive/',
+        )
+
+        self.assertEqual(
+            with_slashes.tmp_path,
+            self.dependencies.tmp_path,
+        )
+        self.assertEqual(
+            with_slashes.save_path,
+            self.dependencies.save_path,
+        )
 
     def test_download_retries_with_injected_sleep(self):
         error = yt_dlp.utils.DownloadError(
@@ -224,11 +247,11 @@ class YtdlpModuleBoundaryTest(DownloadModuleTestCase, unittest.TestCase):
     module_type = YtdlpModule
 
     def test_download_moves_only_artifacts_reported_as_existing(self):
-        stem = '/tmp/downloads/2026-07-28-0905_video：id'
+        stem = Path('/tmp/downloads/2026-07-28-0905_video：id')
         self.existing_paths.update({
-            stem + '.mp4',
-            stem + '.info.json',
-            stem + '.jpg',
+            Path(f'{stem}.mp4'),
+            Path(f'{stem}.info.json'),
+            Path(f'{stem}.jpg'),
         })
 
         info = self.module.download_video('https://www.twitch.tv/channel')
@@ -236,19 +259,19 @@ class YtdlpModuleBoundaryTest(DownloadModuleTestCase, unittest.TestCase):
         self.assertEqual(info, self.download_info)
         self.assertEqual(
             self.ydl_instances[-1].options['outtmpl'],
-            stem + '.%(ext)s',
+            f'{stem}.%(ext)s',
         )
         self.assertEqual(
             self.move.call_args_list,
             [
-                call(stem + '.mp4', '/archive/'),
-                call(stem + '.info.json', '/archive/metadata/'),
-                call(stem + '.jpg', '/archive/thumbnail/'),
+                call(Path(f'{stem}.mp4'), Path('/archive')),
+                call(Path(f'{stem}.info.json'), Path('/archive/metadata')),
+                call(Path(f'{stem}.jpg'), Path('/archive/thumbnail')),
             ],
         )
 
     def test_ops_uses_injected_cookie_existence_check(self):
-        self.existing_paths.add('cookie/cookies.txt')
+        self.existing_paths.add(Path('cookie/cookies.txt'))
 
         options = self.module.ops('/tmp/video.%(ext)s')
 

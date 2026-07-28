@@ -3,8 +3,8 @@
 # ---standard library---
 import datetime
 import time
-import os
 import shutil
+from pathlib import Path
 
 # ---third party library---
 import yt_dlp
@@ -30,11 +30,11 @@ class YoutubeModule():
                 ydl_factory=yt_dlp.YoutubeDL,
                 now=datetime.datetime.now,
                 sleep=time.sleep,
-                path_exists=os.path.exists,
-                make_directory=os.mkdir,
+                path_exists=Path.exists,
+                make_directory=Path.mkdir,
                 move=shutil.move,
-                tmp_path=settings.TMP_PATH,
-                save_path=settings.SAVE_PATH,
+                tmp_path=Path(settings.TMP_PATH),
+                save_path=Path(settings.SAVE_PATH),
             )
         self.dependencies = dependencies
         self.retry_policy = retry_policy or RetryPolicy()
@@ -121,31 +121,29 @@ class YoutubeModule():
             title = date + '_%(id)s' % info
             title = title.translate(str.maketrans(ng_word))
             tmp_path = self.dependencies.tmp_path
-            if not self.dependencies.path_exists(tmp_path):
-                self.dependencies.make_directory(tmp_path)
-            outpath = f'{tmp_path}{title}.%(ext)s'
+            self.dependencies.ensure_directory(tmp_path)
+            outpath = tmp_path / f'{title}.%(ext)s'
 
             with self.dependencies.ydl_factory(
-                self.ops(info=info, outpath=outpath),
+                self.ops(info=info, outpath=str(outpath)),
             ) as ydl:
                 info = ydl.extract_info(url, download=True)
 
             #ファイルをcacheフォルダから移動
             save_path = self.dependencies.save_path
-            if not self.dependencies.path_exists(save_path):
-                self.dependencies.make_directory(save_path)
-            self.dependencies.move(f'{tmp_path}{title}.mp4', f'{save_path}')
-            if not self.dependencies.path_exists(f"{save_path}metadata/"):
-                self.dependencies.make_directory(f"{save_path}metadata/")
+            metadata_path = save_path / 'metadata'
+            thumbnail_path = save_path / 'thumbnail'
+            self.dependencies.ensure_directory(save_path)
+            self.dependencies.move(tmp_path / f'{title}.mp4', save_path)
+            self.dependencies.ensure_directory(metadata_path)
             self.dependencies.move(
-                f'{tmp_path}{title}.info.json',
-                f'{save_path}metadata/',
+                tmp_path / f'{title}.info.json',
+                metadata_path,
             )
-            if not self.dependencies.path_exists(f'{save_path}thumbnail/'):
-                self.dependencies.make_directory(f'{save_path}thumbnail/')
+            self.dependencies.ensure_directory(thumbnail_path)
             self.dependencies.move(
-                f'{tmp_path}{title}.webp',
-                f'{save_path}thumbnail/',
+                tmp_path / f'{title}.webp',
+                thumbnail_path,
             )
             return info
     def get_info(self, url):
