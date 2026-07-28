@@ -1,7 +1,7 @@
 #! ./.venv/bin/python
 
 # ---standard library---
-from functools import partial
+import asyncio
 
 # ---third party library---
 from discord import Embed, File
@@ -32,9 +32,8 @@ class YoutubeCog(commands.Cog):
         # url = args[0]
         url = self.parse_url(args[0])
 
-        fn = partial(self.download_service.check, url)
         try:
-            text = await self.bot.loop.run_in_executor(None, fn)
+            text = await asyncio.to_thread(self.download_service.check, url)
         except Exception as e:
             await ctx.invoke(self.bot.get_command('send_error_log'), e)
             raise e
@@ -43,9 +42,11 @@ class YoutubeCog(commands.Cog):
             self.bot.logger.info(t)
         await ctx.reply(text)
 
-        fn = partial(self.download_service.download, url)
         try:
-            result = await self.bot.loop.run_in_executor(None, fn)
+            result = await asyncio.to_thread(
+                self.download_service.download,
+                url,
+            )
         except Exception as e:
             await ctx.invoke(self.bot.get_command('send_error_log'), e)
             raise e
@@ -72,16 +73,22 @@ class YoutubeCog(commands.Cog):
 
         await ctx.reply('Starting get highlight...')
 
-        fn = partial(self.highlight_service.create, url)
         try:
-            result = await self.bot.loop.run_in_executor(None, fn)
+            result = await asyncio.to_thread(
+                self.highlight_service.create,
+                url,
+            )
         except Exception as e:
             await ctx.invoke(self.bot.get_command('send_error_log'), e)
             raise e
         try:
             graph_image = result.graph_image
             self.bot.logger.debug(graph_image)
-            file = File(graph_image, filename='image.png')
+            file = await asyncio.to_thread(
+                File,
+                graph_image,
+                filename='image.png',
+            )
 
             embed = Embed(
                 title=result.title,
@@ -99,8 +106,10 @@ class YoutubeCog(commands.Cog):
             raise e
 
         try:
-            fn = partial(self.highlight_service.archive_graph, graph_image)
-            await self.bot.loop.run_in_executor(None, fn)
+            await asyncio.to_thread(
+                self.highlight_service.archive_graph,
+                graph_image,
+            )
         except Exception as e:
             await ctx.invoke(self.bot.get_command('send_error_log'), e)
             raise e
