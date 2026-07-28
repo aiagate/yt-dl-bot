@@ -8,15 +8,9 @@ import os
 import shutil
 
 # ---third party library---
-import ffmpeg
-# import youtube_dl
 import yt_dlp
 
 # ---local library---
-from db_connect import DatabaseConnect
-from utils import (
-    OverlappingError
-)
 import property
 
 
@@ -96,7 +90,6 @@ class YtdlpModule():
     def live_timer(self, info):
         if type(info) == dict:
             return 0
-        # elif type(info) == youtube_dl.utils.DownloadError:
         elif type(info) == yt_dlp.utils.DownloadError:
             if 'This live event will begin in' in str(info.args) or 'Premiere' in str(info.args):
 

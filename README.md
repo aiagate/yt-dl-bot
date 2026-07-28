@@ -20,11 +20,11 @@ Copy the environment template and replace every placeholder and channel ID:
 cp .env.example .env
 ```
 
-The local `.env` file is ignored by Git. Keep Discord, YouTube, and database
-credentials there and never commit them.
+The local `.env` file is ignored by Git. Keep the Discord credential there and
+never commit it.
 
 Runtime data paths default to repository-local directories and can be changed
-with `DOWNLOADS_PATH`, `DATABASES_PATH`, and `COOKIE_PATH`.
+with `DOWNLOADS_PATH` and `COOKIE_PATH`.
 
 ## Compose
 
@@ -35,8 +35,7 @@ docker compose config --quiet
 docker compose up -d
 ```
 
-MySQL data is stored in the named `mysql-data` volume. The bot waits for the
-database healthcheck before starting.
+The Compose configuration runs the bot without an external database.
 
 ## Tests
 

@@ -1,35 +1,22 @@
 #! ./.venv/bin/python
 
 # ---standard library---
-from asyncio.log import logger
-import datetime
 import importlib
-import os
 import requests
-import shutil
 from functools import partial
 
 # ---third party library---
-from discord import Embed, File
 from discord.ext import commands
 
 # ---local library---
-import db_connect
 import ytdlpmodule
-import chatdatamodule
-import chatdataextractor
-import youtubeapi
 import property
 
 
 class TwitchCog(commands.Cog):
     def __init__(self, bot):
         importlib.reload(importlib)
-        importlib.reload(db_connect)
         importlib.reload(ytdlpmodule)
-        importlib.reload(chatdatamodule)
-        importlib.reload(chatdataextractor)
-        importlib.reload(youtubeapi)
         importlib.reload(property)
         self.bot = bot
 
