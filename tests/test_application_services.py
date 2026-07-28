@@ -46,7 +46,6 @@ class VideoDownloadServiceTest(unittest.TestCase):
         )
         downloader.data_check.assert_called_once_with(
             url='https://example.test',
-            ydl_ops={},
         )
         downloader.download_video.assert_called_once_with(
             url='https://example.test',
@@ -104,6 +103,10 @@ class TwitchDownloadServiceTest(unittest.TestCase):
             TwitchDownloadService(downloader).check(
                 'https://www.twitch.tv/channel',
             )
+
+        downloader.data_check.assert_called_once_with(
+            url='https://www.twitch.tv/channel',
+        )
 
     def test_other_error_is_propagated(self):
         downloader = Mock()

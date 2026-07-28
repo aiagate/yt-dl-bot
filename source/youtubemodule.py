@@ -40,7 +40,7 @@ class YoutubeModule():
         self.dependencies = dependencies
         self.retry_policy = retry_policy or RetryPolicy()
 
-    def data_check(self, url, ydl_ops={}):
+    def data_check(self, url):
         #URLから動画情報を抽出
         try:
             info = self.get_info(url=url)

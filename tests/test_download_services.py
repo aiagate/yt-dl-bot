@@ -159,6 +159,17 @@ class YoutubeModuleBoundaryTest(DownloadModuleTestCase, unittest.TestCase):
             self.dependencies.save_path,
         )
 
+    def test_download_options_are_fresh_for_each_call(self):
+        first = self.module.ops({}, '/tmp/first.%(ext)s')
+        first['postprocessors'].append({'key': 'test-only'})
+
+        second = self.module.ops({}, '/tmp/second.%(ext)s')
+
+        self.assertNotIn(
+            {'key': 'test-only'},
+            second['postprocessors'],
+        )
+
     def test_download_retries_with_injected_sleep(self):
         error = yt_dlp.utils.DownloadError(
             'This live event will begin in 1 minutes.',
@@ -299,6 +310,17 @@ class YtdlpModuleBoundaryTest(DownloadModuleTestCase, unittest.TestCase):
         options = self.module.ops('/tmp/video.%(ext)s')
 
         self.assertEqual(options['cookiefile'], 'cookie/cookies.txt')
+
+    def test_download_options_are_fresh_for_each_call(self):
+        first = self.module.ops('/tmp/first.%(ext)s')
+        first['postprocessors'].append({'key': 'test-only'})
+
+        second = self.module.ops('/tmp/second.%(ext)s')
+
+        self.assertNotIn(
+            {'key': 'test-only'},
+            second['postprocessors'],
+        )
 
 
 if __name__ == '__main__':
