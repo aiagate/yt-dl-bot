@@ -11,6 +11,7 @@ SOURCE_PATH = Path(__file__).resolve().parents[1] / 'source'
 sys.path.insert(0, str(SOURCE_PATH))
 
 from cogs.systemcog import SystemCog
+from application_services import DownloadResult
 
 
 INITIAL_EXTENSIONS = (
@@ -84,6 +85,30 @@ class ExtensionCommandsTest(unittest.IsolatedAsyncioTestCase):
         channel.send.assert_awaited_once()
         sleep.assert_awaited_once_with(3)
         self.bot.close.assert_awaited_once_with()
+
+    async def test_download_notification_uses_typed_result(self):
+        channel = Mock()
+        channel.send = AsyncMock()
+        self.bot.get_channel.return_value = channel
+        result = DownloadResult(
+            video_id='video-id',
+            title='Example video',
+            source_url='https://youtu.be/video-id',
+            video_file=Path('/archive/video.mkv'),
+            metadata_files=(),
+            thumbnail_files=(),
+        )
+
+        await SystemCog.send_video_output_log.callback(
+            self.cog,
+            self.ctx,
+            result,
+        )
+
+        channel.send.assert_awaited_once_with(
+            '**Download Success : **Example video\n'
+            'https://youtu.be/video-id',
+        )
 
     async def test_load_all_awaits_each_initial_extension_once(self):
         await SystemCog.cogs_load.callback(self.cog, self.ctx, 'all')

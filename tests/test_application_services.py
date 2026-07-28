@@ -30,21 +30,40 @@ from application_errors import (
 from cogs.twitchcog import TwitchCog
 from cogs.youtubecog import YoutubeCog
 from cancellation import CancellationToken
+from artifact_discovery import DownloadedArtifacts
+from download_engine import DownloadOutcome
 
 
 class VideoDownloadServiceTest(unittest.TestCase):
     def test_success_flow_delegates_and_returns_domain_result(self):
         downloader = Mock()
         downloader.data_check.return_value = 'ready'
-        downloader.download_video.return_value = {'id': 'video'}
+        downloader.download_video.return_value = DownloadOutcome(
+            video_id='video',
+            title='Example video',
+            source_url='https://example.test',
+            artifacts=DownloadedArtifacts(
+                video=Path('/archive/video.mkv'),
+                metadata=(Path('/archive/metadata/video.info.json'),),
+                thumbnails=(Path('/archive/thumbnail/video.webp'),),
+            ),
+        )
         service = VideoDownloadService(downloader)
 
         self.assertEqual(service.check('https://example.test'), 'ready')
         self.assertEqual(
             service.download('https://example.test'),
             DownloadResult(
-                url='https://example.test',
-                info={'id': 'video'},
+                video_id='video',
+                title='Example video',
+                source_url='https://example.test',
+                video_file=Path('/archive/video.mkv'),
+                metadata_files=(
+                    Path('/archive/metadata/video.info.json'),
+                ),
+                thumbnail_files=(
+                    Path('/archive/thumbnail/video.webp'),
+                ),
             ),
         )
         downloader.data_check.assert_called_once_with(
@@ -69,7 +88,16 @@ class VideoDownloadServiceTest(unittest.TestCase):
 
     def test_cancellable_download_uses_explicit_adapter_boundary(self):
         downloader = Mock()
-        downloader.download_video_cancellable.return_value = {'id': 'video'}
+        downloader.download_video_cancellable.return_value = DownloadOutcome(
+            video_id='video',
+            title='Example video',
+            source_url='https://example.test',
+            artifacts=DownloadedArtifacts(
+                video=Path('/archive/video.mkv'),
+                metadata=(),
+                thumbnails=(),
+            ),
+        )
         token = CancellationToken()
 
         result = VideoDownloadService(downloader).download(
@@ -77,7 +105,8 @@ class VideoDownloadServiceTest(unittest.TestCase):
             cancellation_token=token,
         )
 
-        self.assertEqual(result.info, {'id': 'video'})
+        self.assertEqual(result.video_id, 'video')
+        self.assertEqual(result.title, 'Example video')
         downloader.download_video.assert_not_called()
         downloader.download_video_cancellable.assert_called_once_with(
             url='https://example.test',
@@ -345,10 +374,15 @@ class CogDelegationTest(unittest.IsolatedAsyncioTestCase):
     async def test_youtube_cog_only_coordinates_download_responses(self):
         bot = self.make_bot()
         bot.services.youtube_download.check.return_value = 'ready'
-        bot.services.youtube_download.download.return_value = DownloadResult(
-            url='https://youtu.be/video',
-            info={'id': 'video'},
+        result = DownloadResult(
+            video_id='video',
+            title='Example video',
+            source_url='https://youtu.be/video',
+            video_file=Path('/archive/video.mkv'),
+            metadata_files=(),
+            thumbnail_files=(),
         )
+        bot.services.youtube_download.download.return_value = result
         ctx = Mock()
         ctx.reply = AsyncMock()
         ctx.invoke = AsyncMock()
@@ -381,8 +415,7 @@ class CogDelegationTest(unittest.IsolatedAsyncioTestCase):
         ctx.reply.assert_awaited_once_with('ready')
         ctx.invoke.assert_awaited_once_with(
             'send_video_output_log',
-            info={'id': 'video'},
-            url='https://youtu.be/video',
+            result=result,
         )
 
     async def test_twitch_cog_maps_offline_result_to_reply(self):

@@ -18,6 +18,8 @@ from download_service import (
     RetryPolicy,
     RetryStatus,
 )
+from artifact_discovery import DownloadedArtifacts
+from download_engine import DownloadOutcome
 from youtubemodule import YoutubeModule
 from ytdlpmodule import YtdlpModule
 
@@ -102,9 +104,33 @@ class YoutubeModuleBoundaryTest(DownloadModuleTestCase, unittest.TestCase):
     module_type = YoutubeModule
 
     def test_download_uses_injected_clock_paths_and_artifact_mover(self):
-        info = self.module.download_video('https://youtu.be/video')
+        result = self.module.download_video('https://youtu.be/video')
 
-        self.assertEqual(info, self.download_info)
+        self.assertEqual(
+            result,
+            DownloadOutcome(
+                video_id='video:id',
+                title='Example video',
+                source_url='https://youtu.be/video',
+                artifacts=DownloadedArtifacts(
+                    video=Path(
+                        '/archive/2026-07-28-0905_video：id.mp4',
+                    ),
+                    metadata=(
+                        Path(
+                            '/archive/metadata/'
+                            '2026-07-28-0905_video：id.info.json',
+                        ),
+                    ),
+                    thumbnails=(
+                        Path(
+                            '/archive/thumbnail/'
+                            '2026-07-28-0905_video：id.webp',
+                        ),
+                    ),
+                ),
+            ),
+        )
         download = self.ydl_instances[-1]
         self.assertEqual(
             download.options['outtmpl'],
@@ -137,6 +163,20 @@ class YoutubeModuleBoundaryTest(DownloadModuleTestCase, unittest.TestCase):
             call(Path('/archive/metadata'), parents=True, exist_ok=True),
             call(Path('/archive/thumbnail'), parents=True, exist_ok=True),
         ])
+
+    def test_download_result_prefers_canonical_source_metadata(self):
+        self.download_info.update({
+            'fulltitle': 'Canonical full title',
+            'webpage_url': 'https://www.youtube.com/watch?v=video-id',
+        })
+
+        result = self.module.download_video('https://youtu.be/video-id')
+
+        self.assertEqual(result.title, 'Canonical full title')
+        self.assertEqual(
+            result.source_url,
+            'https://www.youtube.com/watch?v=video-id',
+        )
 
     def test_trailing_slash_does_not_change_configured_paths(self):
         with_slashes = DownloadDependencies(
@@ -288,9 +328,28 @@ class YtdlpModuleBoundaryTest(DownloadModuleTestCase, unittest.TestCase):
             Path(f'{stem}.jpg'),
         }
 
-        info = self.module.download_video('https://www.twitch.tv/channel')
+        result = self.module.download_video(
+            'https://www.twitch.tv/channel',
+        )
 
-        self.assertEqual(info, self.download_info)
+        self.assertEqual(result.video_id, 'video:id')
+        self.assertEqual(result.title, 'Example video')
+        self.assertEqual(
+            result.source_url,
+            'https://www.twitch.tv/channel',
+        )
+        self.assertEqual(
+            result.artifacts,
+            DownloadedArtifacts(
+                video=Path(f'/archive/{stem.name}.webm'),
+                metadata=(
+                    Path(f'/archive/metadata/{stem.name}.info.json'),
+                ),
+                thumbnails=(
+                    Path(f'/archive/thumbnail/{stem.name}.jpg'),
+                ),
+            ),
+        )
         self.assertEqual(
             self.ydl_instances[-1].options['outtmpl'],
             f'{stem}.%(ext)s',
