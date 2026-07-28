@@ -6,6 +6,8 @@ from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, Mock, patch
 
+import yt_dlp
+
 
 SOURCE_PATH = Path(__file__).resolve().parents[1] / 'source'
 sys.path.insert(0, str(SOURCE_PATH))
@@ -53,7 +55,7 @@ class VideoDownloadServiceTest(unittest.TestCase):
 
     def test_download_failure_is_propagated(self):
         downloader = Mock()
-        failure = RuntimeError('download failed')
+        failure = yt_dlp.utils.DownloadError('download failed')
         downloader.download_video.side_effect = failure
 
         with self.assertRaises(VideoDownloadError) as raised:
@@ -87,11 +89,35 @@ class VideoDownloadServiceTest(unittest.TestCase):
             formatted,
         )
 
+    def test_unexpected_download_failure_is_not_translated(self):
+        downloader = Mock()
+        failure = RuntimeError('programming error')
+        downloader.download_video.side_effect = failure
+
+        with self.assertRaises(RuntimeError) as raised:
+            VideoDownloadService(downloader).download(
+                'https://example.test',
+            )
+
+        self.assertIs(raised.exception, failure)
+
+    def test_unexpected_check_failure_is_not_translated(self):
+        downloader = Mock()
+        failure = AttributeError('broken adapter implementation')
+        downloader.data_check.side_effect = failure
+
+        with self.assertRaises(AttributeError) as raised:
+            VideoDownloadService(downloader).check(
+                'https://example.test',
+            )
+
+        self.assertIs(raised.exception, failure)
+
 
 class TwitchDownloadServiceTest(unittest.TestCase):
     def test_offline_error_is_translated(self):
         downloader = Mock()
-        error = RuntimeError('extract failed')
+        error = yt_dlp.utils.DownloadError('extract failed')
         error.exc_info = (
             None,
             RuntimeError('The channel is not currently live'),
@@ -110,7 +136,7 @@ class TwitchDownloadServiceTest(unittest.TestCase):
 
     def test_other_error_is_propagated(self):
         downloader = Mock()
-        error = RuntimeError('network failed')
+        error = yt_dlp.utils.DownloadError('network failed')
         downloader.data_check.side_effect = error
 
         with self.assertRaises(VideoCheckError) as raised:
@@ -120,6 +146,18 @@ class TwitchDownloadServiceTest(unittest.TestCase):
 
         self.assertIs(raised.exception.original_error, error)
         self.assertIs(raised.exception.__cause__, error)
+
+    def test_unexpected_error_is_not_translated(self):
+        downloader = Mock()
+        error = TypeError('broken adapter implementation')
+        downloader.data_check.side_effect = error
+
+        with self.assertRaises(TypeError) as raised:
+            TwitchDownloadService(downloader).check(
+                'https://www.twitch.tv/channel',
+            )
+
+        self.assertIs(raised.exception, error)
 
 
 class HighlightServiceTest(unittest.TestCase):
@@ -182,7 +220,7 @@ class HighlightServiceTest(unittest.TestCase):
 
     def test_highlight_external_failure_is_typed(self):
         youtube = Mock()
-        failure = RuntimeError('yt-dlp failed')
+        failure = yt_dlp.utils.DownloadError('yt-dlp failed')
         youtube.get_videoid.side_effect = failure
         service = YoutubeHighlightService(
             settings=SimpleNamespace(GRAPH_SAVE_PATH='/graphs/'),
@@ -193,6 +231,20 @@ class HighlightServiceTest(unittest.TestCase):
             service.create('https://youtu.be/video')
 
         self.assertIs(raised.exception.__cause__, failure)
+
+    def test_unexpected_highlight_failure_is_not_translated(self):
+        youtube = Mock()
+        failure = AttributeError('broken highlight implementation')
+        youtube.get_videoid.side_effect = failure
+        service = YoutubeHighlightService(
+            settings=SimpleNamespace(GRAPH_SAVE_PATH='/graphs/'),
+            youtube=youtube,
+        )
+
+        with self.assertRaises(AttributeError) as raised:
+            service.create('https://youtu.be/video')
+
+        self.assertIs(raised.exception, failure)
 
     def test_filesystem_failure_is_typed(self):
         failure = OSError('disk full')
