@@ -1,7 +1,7 @@
-import os
 import sys
 import unittest
 from pathlib import Path
+from types import SimpleNamespace
 from unittest.mock import AsyncMock, Mock, call, patch
 
 from discord.ext import commands
@@ -10,18 +10,15 @@ from discord.ext import commands
 SOURCE_PATH = Path(__file__).resolve().parents[1] / 'source'
 sys.path.insert(0, str(SOURCE_PATH))
 
-REQUIRED_ENVIRONMENT = {
-    'DISCORD_KEY': 'discord-token',
-    'LOG_CHANNEL': '1',
-    'VIDEO_OUTPUT_CHANNEL': '2',
-    'HIGHLIGHT_OUTPUT_CHANNEL': '3',
-    'DOWNLOAD_CHANNEL': '4',
-    'HIGHLIGHT_CHANNEL': '5',
-}
+from cogs.systemcog import SystemCog
 
-with patch.dict(os.environ, REQUIRED_ENVIRONMENT):
-    import property
-    from cogs.systemcog import SystemCog
+
+INITIAL_EXTENSIONS = (
+    'cogs.maincog',
+    'cogs.systemcog',
+    'cogs.youtubecog',
+    'cogs.twitchcog',
+)
 
 
 class OwnerChecksTest(unittest.IsolatedAsyncioTestCase):
@@ -65,6 +62,12 @@ class ExtensionCommandsTest(unittest.IsolatedAsyncioTestCase):
         self.bot.load_extension = AsyncMock()
         self.bot.reload_extension = AsyncMock()
         self.bot.unload_extension = AsyncMock()
+        self.bot.settings = SimpleNamespace(
+            INITIAL_EXTENSIONS=INITIAL_EXTENSIONS,
+            LOG_CHANNEL=1,
+            VIDEO_OUTPUT_CHANNEL=2,
+            HIGHLIGHT_OUTPUT_CHANNEL=3,
+        )
         self.cog = SystemCog(self.bot)
         self.ctx = Mock()
         self.ctx.send = AsyncMock()
@@ -86,11 +89,11 @@ class ExtensionCommandsTest(unittest.IsolatedAsyncioTestCase):
         await SystemCog.cogs_load.callback(self.cog, self.ctx, 'all')
 
         self.bot.load_extension.assert_has_awaits(
-            [call(extension) for extension in property.INITIAL_EXTENSIONS],
+            [call(extension) for extension in INITIAL_EXTENSIONS],
         )
         self.assertEqual(
             self.bot.load_extension.await_count,
-            len(property.INITIAL_EXTENSIONS),
+            len(INITIAL_EXTENSIONS),
         )
 
     async def test_load_awaits_each_unique_extension(self):
@@ -108,11 +111,11 @@ class ExtensionCommandsTest(unittest.IsolatedAsyncioTestCase):
         )
 
         self.bot.reload_extension.assert_has_awaits(
-            [call(extension) for extension in property.INITIAL_EXTENSIONS],
+            [call(extension) for extension in INITIAL_EXTENSIONS],
         )
         self.assertEqual(
             self.bot.reload_extension.await_count,
-            len(property.INITIAL_EXTENSIONS),
+            len(INITIAL_EXTENSIONS),
         )
 
     async def test_unload_all_force_awaits_each_extension_once(self):
@@ -121,11 +124,11 @@ class ExtensionCommandsTest(unittest.IsolatedAsyncioTestCase):
         )
 
         self.bot.unload_extension.assert_has_awaits(
-            [call(extension) for extension in property.INITIAL_EXTENSIONS],
+            [call(extension) for extension in INITIAL_EXTENSIONS],
         )
         self.assertEqual(
             self.bot.unload_extension.await_count,
-            len(property.INITIAL_EXTENSIONS),
+            len(INITIAL_EXTENSIONS),
         )
 
     async def test_unload_all_without_force_is_rejected(self):

@@ -14,7 +14,6 @@ from discord.ext import commands
 # ---local library---
 import youtubemodule
 import chatdatamodule
-import property
 from url_validation import validate_service_url
 
 
@@ -23,8 +22,8 @@ class YoutubeCog(commands.Cog):
         importlib.reload(importlib)
         importlib.reload(youtubemodule)
         importlib.reload(chatdatamodule)
-        importlib.reload(property)
         self.bot = bot
+        self.settings = bot.settings
 
     @staticmethod
     def parse_url(url):
@@ -40,7 +39,7 @@ class YoutubeCog(commands.Cog):
         # url = args[0]
         url = self.parse_url(args[0])
 
-        ytm = youtubemodule.YoutubeModule()
+        ytm = youtubemodule.YoutubeModule(settings=self.settings)
 
         fn = partial(ytm.data_check, url=url, ydl_ops={})
         try:
@@ -78,11 +77,14 @@ class YoutubeCog(commands.Cog):
 
         await ctx.reply('Starting get highlight...')
 
-        ytm = youtubemodule.YoutubeModule()
+        ytm = youtubemodule.YoutubeModule(settings=self.settings)
         video_id = ytm.get_videoid(url=url)
         video_info = ytm.get_info(url=url)
 
-        cdm = chatdatamodule.ChatDataModule(video_id=video_id)
+        cdm = chatdatamodule.ChatDataModule(
+            video_id=video_id,
+            settings=self.settings,
+        )
         fn = partial(cdm.get_highlight)
         try:
             highlight_urls = await self.bot.loop.run_in_executor(None, fn)
@@ -121,7 +123,7 @@ class YoutubeCog(commands.Cog):
             raise e
 
         try:
-            out_path = property.GRAPH_SAVE_PATH
+            out_path = self.settings.GRAPH_SAVE_PATH
             if not os.path.exists(out_path):
                 os.mkdir(out_path)
             shutil.move(graph_image, out_path)
