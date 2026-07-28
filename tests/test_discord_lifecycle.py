@@ -1,19 +1,16 @@
 import unittest
-from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import AsyncMock
 
-
-
-INITIAL_EXTENSIONS = (
-    'yt_dl_bot.cogs.maincog',
-    'yt_dl_bot.cogs.systemcog',
-    'yt_dl_bot.cogs.youtubecog',
-    'yt_dl_bot.cogs.twitchcog',
-)
-
 from yt_dl_bot.cogs import maincog, systemcog, twitchcog, youtubecog
 from yt_dl_bot.discord_bot_main import MyBot
+
+INITIAL_EXTENSIONS = (
+    "yt_dl_bot.cogs.maincog",
+    "yt_dl_bot.cogs.systemcog",
+    "yt_dl_bot.cogs.youtubecog",
+    "yt_dl_bot.cogs.twitchcog",
+)
 
 
 class BotLifecycleTest(unittest.IsolatedAsyncioTestCase):
@@ -22,7 +19,7 @@ class BotLifecycleTest(unittest.IsolatedAsyncioTestCase):
             INITIAL_EXTENSIONS=INITIAL_EXTENSIONS,
         )
         bot = MyBot(
-            command_prefix='!',
+            command_prefix="!",
             settings=settings,
             services=SimpleNamespace(),
         )
@@ -38,12 +35,12 @@ class BotLifecycleTest(unittest.IsolatedAsyncioTestCase):
 
     async def test_ready_event_does_not_load_extensions(self):
         bot = MyBot(
-            command_prefix='!',
+            command_prefix="!",
             settings=SimpleNamespace(INITIAL_EXTENSIONS=()),
             services=SimpleNamespace(),
         )
         bot.load_extension = AsyncMock()
-        bot._connection.user = unittest.mock.Mock(name='bot', id=1)
+        bot._connection.user = unittest.mock.Mock(name="bot", id=1)
         self.addAsyncCleanup(bot.close)
 
         await bot.on_ready()
@@ -74,5 +71,5 @@ class CogSetupTest(unittest.IsolatedAsyncioTestCase):
                 self.assertIs(registered_cog.settings, bot.settings)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

@@ -22,7 +22,6 @@ from .external_error_adapter import error_detail, is_twitch_offline
 from .youtubemodule import YoutubeModule
 from .ytdlpmodule import YtdlpModule
 
-
 DOWNLOAD_ADAPTER_ERRORS = (
     yt_dlp.utils.DownloadError,
     yt_dlp.utils.ExtractorError,
@@ -69,7 +68,7 @@ class DownloadResult:
     def from_outcome(cls, outcome):
         if not isinstance(outcome, DownloadOutcome):
             raise TypeError(
-                'download adapter must return DownloadOutcome',
+                "download adapter must return DownloadOutcome",
             )
         return cls(
             video_id=outcome.video_id,
@@ -97,21 +96,21 @@ class TwitchStreamOffline(Exception):
 def split_highlight_text(highlights, max_length=1024):
     """Format highlight links into fields within Discord's size limit."""
     if max_length < 2:
-        raise ValueError('max_length must be at least 2')
+        raise ValueError("max_length must be at least 2")
 
     field_limit = max_length - 1
     fields = []
-    current = ''
+    current = ""
     for seconds, url in highlights:
-        line = f'{datetime.timedelta(seconds=seconds)}\t{url}\n'
+        line = f"{datetime.timedelta(seconds=seconds)}\t{url}\n"
         line = line[:field_limit]
         if current and len(current + line) > field_limit:
             fields.append(current)
-            current = ''
+            current = ""
         current += line
     if current:
         fields.append(current)
-    return tuple(fields) or ('does not get highlight'[:field_limit],)
+    return tuple(fields) or ("does not get highlight"[:field_limit],)
 
 
 class VideoDownloadService:
@@ -123,7 +122,7 @@ class VideoDownloadService:
             return self.downloader.data_check(url=url)
         except DOWNLOAD_ADAPTER_ERRORS as error:
             raise VideoCheckError(
-                f'Unable to check video: {error_detail(error)}',
+                f"Unable to check video: {error_detail(error)}",
                 original_error=error,
             ) from error
 
@@ -138,7 +137,7 @@ class VideoDownloadService:
                 )
         except DOWNLOAD_ADAPTER_ERRORS as error:
             raise VideoDownloadError(
-                f'Unable to download video: {error_detail(error)}',
+                f"Unable to download video: {error_detail(error)}",
                 original_error=error,
             ) from error
         return DownloadResult.from_outcome(outcome)
@@ -152,7 +151,7 @@ class TwitchDownloadService(VideoDownloadService):
             if is_twitch_offline(error):
                 raise TwitchStreamOffline(error_detail(error)) from error
             raise VideoCheckError(
-                f'Unable to check Twitch stream: {error_detail(error)}',
+                f"Unable to check Twitch stream: {error_detail(error)}",
                 original_error=error,
             ) from error
 
@@ -182,7 +181,7 @@ class YoutubeHighlightService:
             video_info = self.youtube.get_info(url=url)
         except YOUTUBE_METADATA_ERRORS as error:
             raise HighlightCreationError(
-                f'Unable to create highlights: {error_detail(error)}',
+                f"Unable to create highlights: {error_detail(error)}",
                 original_error=error,
             ) from error
 
@@ -191,20 +190,20 @@ class YoutubeHighlightService:
             highlights = chat.get_highlight()
         except CHAT_PROCESSING_ERRORS as error:
             raise HighlightCreationError(
-                f'Unable to create highlights: {error_detail(error)}',
+                f"Unable to create highlights: {error_detail(error)}",
                 original_error=error,
             ) from error
 
         try:
-            title = video_info.get('fulltitle') or video_info['title']
-            channel_name = video_info['channel']
-            thumbnail_url = video_info['thumbnail']
+            title = video_info.get("fulltitle") or video_info["title"]
+            channel_name = video_info["channel"]
+            thumbnail_url = video_info["thumbnail"]
         except (KeyError, TypeError) as error:
             # yt-dlp metadata is external input. Treat a malformed schema as an
             # adapter failure, while leaving unrelated programming errors free
             # to propagate.
             raise HighlightCreationError(
-                f'Unable to create highlights: {error_detail(error)}',
+                f"Unable to create highlights: {error_detail(error)}",
                 original_error=error,
             ) from error
         return HighlightResult(
@@ -227,7 +226,7 @@ class YoutubeHighlightService:
             self.move(Path(graph_image), output_path)
         except (OSError, shutil.Error) as error:
             raise ArtifactStorageError(
-                f'Unable to archive highlight graph: {error}',
+                f"Unable to archive highlight graph: {error}",
                 original_error=error,
             ) from error
 

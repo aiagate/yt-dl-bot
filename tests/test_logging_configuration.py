@@ -7,8 +7,6 @@ from unittest.mock import Mock, patch
 
 from pydantic import SecretStr
 
-
-
 from yt_dl_bot import discord_bot_main
 
 
@@ -16,11 +14,8 @@ class LoggingConfigurationTest(unittest.TestCase):
     def setUp(self):
         self.temporary_directory = tempfile.TemporaryDirectory()
         self.addCleanup(self.temporary_directory.cleanup)
-        self.log_path = Path(self.temporary_directory.name) / 'nested/logs'
-        self.target_loggers = [
-            logging.getLogger(name)
-            for name in discord_bot_main.FILE_LOGGERS
-        ]
+        self.log_path = Path(self.temporary_directory.name) / "nested/logs"
+        self.target_loggers = [logging.getLogger(name) for name in discord_bot_main.FILE_LOGGERS]
 
     def tearDown(self):
         seen = set()
@@ -73,26 +68,26 @@ class LoggingConfigurationTest(unittest.TestCase):
         events = []
         settings = SimpleNamespace(
             LOG_PATH=self.log_path,
-            DISCORD_KEY=SecretStr('super-secret-token'),
+            DISCORD_KEY=SecretStr("super-secret-token"),
         )
-        services = Mock(name='services')
+        services = Mock(name="services")
         bot = Mock()
-        bot.run.side_effect = lambda token: events.append(('run', token))
+        bot.run.side_effect = lambda token: events.append(("run", token))
 
         with (
             patch.object(
                 discord_bot_main,
-                'configure_logging',
-                side_effect=lambda path: events.append(('logging', path)),
+                "configure_logging",
+                side_effect=lambda path: events.append(("logging", path)),
             ),
             patch.object(
                 discord_bot_main.ApplicationServices,
-                'from_settings',
+                "from_settings",
                 return_value=services,
             ),
             patch.object(
                 discord_bot_main,
-                'MyBot',
+                "MyBot",
                 return_value=bot,
             ) as bot_class,
         ):
@@ -101,12 +96,12 @@ class LoggingConfigurationTest(unittest.TestCase):
         self.assertEqual(
             events,
             [
-                ('logging', self.log_path),
-                ('run', 'super-secret-token'),
+                ("logging", self.log_path),
+                ("run", "super-secret-token"),
             ],
         )
         bot_class.assert_called_once_with(
-            command_prefix='!',
+            command_prefix="!",
             settings=settings,
             services=services,
         )
@@ -114,10 +109,10 @@ class LoggingConfigurationTest(unittest.TestCase):
     def test_logging_configuration_does_not_write_secret_values(self):
         discord_bot_main.configure_logging(self.log_path)
 
-        contents = (self.log_path / 'discord_bot_main.log').read_text()
+        contents = (self.log_path / "discord_bot_main.log").read_text()
 
-        self.assertNotIn('super-secret-token', contents)
+        self.assertNotIn("super-secret-token", contents)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

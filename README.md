@@ -48,9 +48,17 @@ The Compose configuration runs the bot without an external database.
 ## Tests
 
 ```sh
-uv run python -m unittest discover -s tests -v
-uv run python -m compileall -q src tests
+uv run ruff format --check src tests
+uv run ruff check src tests
+uv run mypy
+uv run coverage run -m unittest discover -s tests -v
+uv run coverage report
 uv run pip-audit
 uv lock --check
 docker compose --env-file .env.example config --quiet
 ```
+
+CI enforces Ruff formatting and linting across `src/` and `tests/`,
+incremental type checking of the core boundary and pure-logic modules, and at
+least 70% branch coverage. Run `uv run ruff format src tests` to apply
+formatting locally.

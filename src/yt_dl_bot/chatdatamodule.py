@@ -40,7 +40,7 @@ class HighlightAnalyzer:
     def elapsed_seconds(elapsed_time: str) -> int | None:
         if not isinstance(elapsed_time, str):
             return None
-        parts = elapsed_time.replace(',', '').split(':')
+        parts = elapsed_time.replace(",", "").split(":")
         try:
             values = [int(part) for part in parts]
         except (TypeError, ValueError):
@@ -127,7 +127,7 @@ class MatplotlibGraphRenderer:
                 [index * bucket_seconds for index in range(len(score_data))],
                 score_data,
             )
-            plt.grid(axis='y', linestyle='dotted')
+            plt.grid(axis="y", linestyle="dotted")
             figure.savefig(image_path)
         finally:
             plt.close(figure)
@@ -161,13 +161,13 @@ class ChatDataModule:
         settings = settings or Settings()
         self.logger = getLogger(__name__)
         self.video_id = video_id
-        self.url = f'https://youtu.be/{video_id}'
+        self.url = f"https://youtu.be/{video_id}"
         self.chat_source = chat_source or PytchatSource()
         self.analyzer = analyzer or HighlightAnalyzer(self.BUCKET_SECONDS)
         self.graph_renderer = graph_renderer or MatplotlibGraphRenderer()
         self.clock = clock or SystemClock()
-        date = self.clock.now().strftime('%Y-%m-%d-%H%M')
-        self.image_name = f'scoregraph_{date}_{video_id}.png'
+        date = self.clock.now().strftime("%Y-%m-%d-%H%M")
+        self.image_name = f"scoregraph_{date}_{video_id}.png"
         self.image_path = Path(settings.TMP_PATH) / self.image_name
 
     @staticmethod
@@ -193,14 +193,14 @@ class ChatDataModule:
         return self.analyzer.peak_times(score_data)
 
     def get_highlight(self):
-        self.logger.info('Collecting chat activity for %s', self.video_id)
+        self.logger.info("Collecting chat activity for %s", self.video_id)
         comment_counts = self.collect_comment_counts()
         score_data = self.count_score(comment_counts)
         self.plot_peak(score_data)
 
         highlights = []
         for seconds in self.get_peaktime(score_data):
-            url = f'{self.url}?t={seconds}s'
-            self.logger.info('Highlight: %s', url)
+            url = f"{self.url}?t={seconds}s"
+            self.logger.info("Highlight: %s", url)
             highlights.append([seconds, url])
         return highlights

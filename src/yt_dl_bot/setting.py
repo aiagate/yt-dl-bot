@@ -8,10 +8,10 @@ CURRENT_PATH = Path(__file__).resolve().parent
 PROJECT_PATH = CURRENT_PATH.parents[1]
 
 DEFAULT_INITIAL_EXTENSIONS = (
-    'yt_dl_bot.cogs.maincog',
-    'yt_dl_bot.cogs.systemcog',
-    'yt_dl_bot.cogs.youtubecog',
-    'yt_dl_bot.cogs.twitchcog',
+    "yt_dl_bot.cogs.maincog",
+    "yt_dl_bot.cogs.systemcog",
+    "yt_dl_bot.cogs.youtubecog",
+    "yt_dl_bot.cogs.twitchcog",
 )
 
 
@@ -26,20 +26,20 @@ class Settings(BaseSettings):
     DOWNLOAD_CHANNEL: int
     HIGHLIGHT_CHANNEL: int
 
-    SAVE_PATH: Path = Path('downloads')
-    GRAPH_SAVE_PATH: Path = Path('downloads/graph')
-    TMP_PATH: Path = Path('downloads/cache')
-    LOG_PATH: Path = Path('logs')
-    COLLECTOR_LOG_PATH: Path = Path('logs')
+    SAVE_PATH: Path = Path("downloads")
+    GRAPH_SAVE_PATH: Path = Path("downloads/graph")
+    TMP_PATH: Path = Path("downloads/cache")
+    LOG_PATH: Path = Path("logs")
+    COLLECTOR_LOG_PATH: Path = Path("logs")
 
     model_config = SettingsConfigDict(
         env_file=(
-            f'{PROJECT_PATH}/.env',
-            f'{CURRENT_PATH}/.env',
-            f'{CURRENT_PATH}/.env.local',
-            f'{CURRENT_PATH}/.env.develop',
-            f'{CURRENT_PATH}/.env.production',
+            f"{PROJECT_PATH}/.env",
+            f"{CURRENT_PATH}/.env",
+            f"{CURRENT_PATH}/.env.local",
+            f"{CURRENT_PATH}/.env.develop",
+            f"{CURRENT_PATH}/.env.production",
         ),
-        env_file_encoding='utf-8',
-        extra='ignore',
+        env_file_encoding="utf-8",
+        extra="ignore",
     )

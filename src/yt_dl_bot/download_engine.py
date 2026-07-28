@@ -30,7 +30,7 @@ class DownloadPolicy:
     require_thumbnail: bool
     live_from_start: bool
     use_cookie_file: bool
-    cookie_path: Path = Path('cookie/cookies.txt')
+    cookie_path: Path = Path("cookie/cookies.txt")
 
 
 @dataclass(frozen=True)
@@ -80,20 +80,17 @@ def default_download_dependencies(settings):
 
 def build_output_name(info, now):
     replacements = {
-        '\\': '＼',
-        '/': '／',
-        '"': '”',
-        "'": '’',
-        ':': '：',
-        '<': '＜',
-        '>': '＞',
-        '|': '｜',
-        '?': '？',
+        "\\": "＼",
+        "/": "／",
+        '"': "”",
+        "'": "’",
+        ":": "：",
+        "<": "＜",
+        ">": "＞",
+        "|": "｜",
+        "?": "？",
     }
-    return (
-        f"{now.strftime('%Y-%m-%d-%H%M')}_{info['id']}"
-        .translate(str.maketrans(replacements))
-    )
+    return f"{now.strftime('%Y-%m-%d-%H%M')}_{info['id']}".translate(str.maketrans(replacements))
 
 
 class DownloadEngine:
@@ -134,7 +131,7 @@ class DownloadEngine:
         title = build_output_name(info, self.dependencies.now())
         tmp_path = self.dependencies.tmp_path
         self.dependencies.ensure_directory(tmp_path)
-        outpath = tmp_path / f'{title}.%(ext)s'
+        outpath = tmp_path / f"{title}.%(ext)s"
 
         with self.dependencies.ydl_factory(
             self.build_options(
@@ -157,17 +154,15 @@ class DownloadEngine:
         self._raise_if_cancelled(cancellation_token)
         stored_artifacts = self._move_artifacts(artifacts)
         return DownloadOutcome(
-            video_id=str(downloaded_info.get('id') or ''),
+            video_id=str(downloaded_info.get("id") or ""),
             title=str(
-                downloaded_info.get('fulltitle')
-                or downloaded_info.get('title')
-                or downloaded_info.get('id')
+                downloaded_info.get("fulltitle")
+                or downloaded_info.get("title")
+                or downloaded_info.get("id")
                 or url
             ),
             source_url=str(
-                downloaded_info.get('webpage_url')
-                or downloaded_info.get('original_url')
-                or url
+                downloaded_info.get("webpage_url") or downloaded_info.get("original_url") or url
             ),
             artifacts=stored_artifacts,
         )
@@ -193,7 +188,7 @@ class DownloadEngine:
                 decision = retry_policy.decide(error)
                 if decision.status is RetryStatus.PERMANENT_FAILURE:
                     raise PermanentDownloadError(
-                        'Download failure is not retryable',
+                        "Download failure is not retryable",
                         original_error=error,
                         attempts=attempts,
                         waited_seconds=waited_seconds,
@@ -202,11 +197,10 @@ class DownloadEngine:
                 wait_seconds = decision.wait_seconds
                 if (
                     attempts >= retry_policy.max_attempts
-                    or waited_seconds + wait_seconds
-                    > retry_policy.max_wait_seconds
+                    or waited_seconds + wait_seconds > retry_policy.max_wait_seconds
                 ):
                     raise DownloadRetryLimitExceeded(
-                        'Download retry limit exceeded',
+                        "Download retry limit exceeded",
                         original_error=error,
                         attempts=attempts,
                         waited_seconds=waited_seconds,
@@ -219,8 +213,8 @@ class DownloadEngine:
 
     def _move_artifacts(self, artifacts):
         save_path = self.dependencies.save_path
-        metadata_path = save_path / 'metadata'
-        thumbnail_path = save_path / 'thumbnail'
+        metadata_path = save_path / "metadata"
+        thumbnail_path = save_path / "thumbnail"
         self.dependencies.ensure_directory(save_path)
         self.dependencies.ensure_directory(metadata_path)
         self.dependencies.ensure_directory(thumbnail_path)
@@ -251,7 +245,7 @@ class DownloadEngine:
         for _, _, destination in move_plan:
             if self.dependencies.path_exists(destination):
                 raise shutil.Error(
-                    f'Destination path already exists: {destination}',
+                    f"Destination path already exists: {destination}",
                 )
 
         completed_moves = []
@@ -268,20 +262,14 @@ class DownloadEngine:
                     rollback_errors.append(rollback_error)
             if rollback_errors:
                 move_error.add_note(
-                    'Failed to roll back one or more artifact moves: '
-                    + '; '.join(str(error) for error in rollback_errors),
+                    "Failed to roll back one or more artifact moves: "
+                    + "; ".join(str(error) for error in rollback_errors),
                 )
             raise
         return DownloadedArtifacts(
             video=move_plan[0][2],
-            metadata=tuple(
-                metadata_path / path.name
-                for path in artifacts.metadata
-            ),
-            thumbnails=tuple(
-                thumbnail_path / path.name
-                for path in artifacts.thumbnails
-            ),
+            metadata=tuple(metadata_path / path.name for path in artifacts.metadata),
+            thumbnails=tuple(thumbnail_path / path.name for path in artifacts.thumbnails),
         )
 
     @staticmethod
@@ -290,7 +278,7 @@ class DownloadEngine:
             cancellation_token.raise_if_cancelled()
 
     def live_timer(self, info):
-        if type(info) == dict:
+        if isinstance(info, dict):
             return 0
         if self.policy.retry_policy is not None:
             decision = self.policy.retry_policy.decide(info)
@@ -304,46 +292,43 @@ class DownloadEngine:
 
     def build_options(self, outpath, cancellation_token=None):
         options = {
-            'outtmpl': outpath,
-            'format': 'bestvideo+bestaudio/best',
-            'merge_output_format': 'mkv',
-            'noplaylist': True,
-            'nooverwrites': True,
-            'keepvideo': False,
-            'hls_use_mpegts': True,
-            'writeinfojson': True,
-            'embed_metadata': True,
-            'writethumbnail': True,
-            'embedthumbnail': True,
-            'socket_timeout': 300,
-            'fragment_retries': 300,
-            'postprocessor_args': {
-                'videoconvertor': ['-c:v', 'copy'],
+            "outtmpl": outpath,
+            "format": "bestvideo+bestaudio/best",
+            "merge_output_format": "mkv",
+            "noplaylist": True,
+            "nooverwrites": True,
+            "keepvideo": False,
+            "hls_use_mpegts": True,
+            "writeinfojson": True,
+            "embed_metadata": True,
+            "writethumbnail": True,
+            "embedthumbnail": True,
+            "socket_timeout": 300,
+            "fragment_retries": 300,
+            "postprocessor_args": {
+                "videoconvertor": ["-c:v", "copy"],
             },
-            'postprocessors': [
+            "postprocessors": [
                 {
-                    'key': 'FFmpegVideoConvertor',
-                    'preferedformat': 'mp4',
+                    "key": "FFmpegVideoConvertor",
+                    "preferedformat": "mp4",
                 },
                 {
-                    'key': 'FFmpegMetadata',
-                    'add_metadata': True,
+                    "key": "FFmpegMetadata",
+                    "add_metadata": True,
                 },
                 {
-                    'key': 'EmbedThumbnail',
-                    'already_have_thumbnail': True,
+                    "key": "EmbedThumbnail",
+                    "already_have_thumbnail": True,
                 },
             ],
         }
         if self.policy.live_from_start:
-            options['live_from_start'] = True
-        if (
-            self.policy.use_cookie_file
-            and self.dependencies.path_exists(self.policy.cookie_path)
-        ):
-            options['cookiefile'] = str(self.policy.cookie_path)
+            options["live_from_start"] = True
+        if self.policy.use_cookie_file and self.dependencies.path_exists(self.policy.cookie_path):
+            options["cookiefile"] = str(self.policy.cookie_path)
         if cancellation_token is not None:
-            options['progress_hooks'] = [
+            options["progress_hooks"] = [
                 lambda _: cancellation_token.raise_if_cancelled(),
             ]
         return options

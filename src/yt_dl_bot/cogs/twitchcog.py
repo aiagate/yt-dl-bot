@@ -21,12 +21,12 @@ class TwitchCog(commands.Cog):
         self.settings = bot.settings
         self.download_service = bot.services.twitch_download
 
-    @commands.group(name='twitch')
+    @commands.group(name="twitch")
     async def twitch_cog(self, ctx):
         if ctx.invoked_subcommand is None:
-            await ctx.send('Error: missing option')
+            await ctx.send("Error: missing option")
 
-    @twitch_cog.command(name='download', ignore_extra=False)
+    @twitch_cog.command(name="download", ignore_extra=False)
     async def download_video(self, ctx, url: TwitchURL):
         try:
             result = await asyncio.to_thread(
@@ -34,7 +34,7 @@ class TwitchCog(commands.Cog):
                 url,
             )
         except TwitchStreamOffline:
-            await ctx.reply('このチャンネルでライブは始まっていません。')
+            await ctx.reply("このチャンネルでライブは始まっていません。")
             return
 
         await ctx.reply(result)
@@ -43,9 +43,9 @@ class TwitchCog(commands.Cog):
             self.download_service.download,
             url,
         )
-        self.bot.logger.info('Download Success!')
+        self.bot.logger.info("Download Success!")
         await ctx.invoke(
-            self.bot.get_command('send_video_output_log'),
+            self.bot.get_command("send_video_output_log"),
             result=result,
         )
         return
@@ -55,10 +55,10 @@ class TwitchCog(commands.Cog):
         if await handle_url_argument_error(
             ctx,
             error,
-            usage='twitch download <url>',
+            usage="twitch download <url>",
         ):
             return
-        await ctx.invoke(self.bot.get_command('send_error_log'), error)
+        await ctx.invoke(self.bot.get_command("send_error_log"), error)
 
 
 async def setup(bot):
