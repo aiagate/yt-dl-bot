@@ -9,7 +9,10 @@ from discord.ext import commands
 # ---local library---
 from application_services import TwitchStreamOffline
 from cancellation import to_thread_cancellable
-from url_validation import validate_service_url
+from cogs.command_arguments import (
+    TwitchURL,
+    handle_url_argument_error,
+)
 
 
 class TwitchCog(commands.Cog):
@@ -18,19 +21,13 @@ class TwitchCog(commands.Cog):
         self.settings = bot.settings
         self.download_service = bot.services.twitch_download
 
-    @staticmethod
-    def parse_url(url):
-        return validate_service_url(url, 'twitch')
-
     @commands.group(name='twitch')
     async def twitch_cog(self, ctx):
         if ctx.invoked_subcommand is None:
             await ctx.send('Error: missing option')
 
-    @twitch_cog.command(name='download')
-    async def download_video(self, ctx, *args, **kwargs):
-        url = self.parse_url(args[0])
-
+    @twitch_cog.command(name='download', ignore_extra=False)
+    async def download_video(self, ctx, url: TwitchURL):
         try:
             result = await asyncio.to_thread(
                 self.download_service.check,
@@ -56,7 +53,14 @@ class TwitchCog(commands.Cog):
 
     @download_video.error
     async def download_video_error(self, ctx, error):
+        if await handle_url_argument_error(
+            ctx,
+            error,
+            usage='twitch download <url>',
+        ):
+            return
         await ctx.invoke(self.bot.get_command('send_error_log'), error)
+
 
 async def setup(bot):
     await bot.add_cog(TwitchCog(bot))
