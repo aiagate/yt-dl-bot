@@ -107,9 +107,15 @@ class VideoDownloadService:
                 original_error=error,
             ) from error
 
-    def download(self, url):
+    def download(self, url, cancellation_token=None):
         try:
-            info = self.downloader.download_video(url=url)
+            if cancellation_token is None:
+                info = self.downloader.download_video(url=url)
+            else:
+                info = self.downloader.download_video_cancellable(
+                    url=url,
+                    cancellation_token=cancellation_token,
+                )
         except DOWNLOAD_ADAPTER_ERRORS as error:
             raise VideoDownloadError(
                 f'Unable to download video: {error_detail(error)}',

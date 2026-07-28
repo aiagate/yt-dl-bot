@@ -8,6 +8,7 @@ from discord import Embed, File
 from discord.ext import commands
 
 # ---local library---
+from cancellation import to_thread_cancellable
 from url_validation import validate_service_url
 
 
@@ -38,7 +39,7 @@ class YoutubeCog(commands.Cog):
             self.bot.logger.info(t)
         await ctx.reply(text)
 
-        result = await asyncio.to_thread(
+        result = await to_thread_cancellable(
             self.download_service.download,
             url,
         )

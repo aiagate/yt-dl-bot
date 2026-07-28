@@ -27,6 +27,13 @@ class YtdlpModule:
     def download_video(self, url):
         return self.engine.download_video(url, info_loader=self.get_info)
 
+    def download_video_cancellable(self, url, cancellation_token):
+        return self.engine.download_video(
+            url,
+            info_loader=self.get_info,
+            cancellation_token=cancellation_token,
+        )
+
     def get_info(self, url):
         return self.engine.get_info(url)
 

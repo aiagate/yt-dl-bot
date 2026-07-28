@@ -8,6 +8,7 @@ from discord.ext import commands
 
 # ---local library---
 from application_services import TwitchStreamOffline
+from cancellation import to_thread_cancellable
 from url_validation import validate_service_url
 
 
@@ -41,7 +42,7 @@ class TwitchCog(commands.Cog):
 
         await ctx.reply(result)
 
-        result = await asyncio.to_thread(
+        result = await to_thread_cancellable(
             self.download_service.download,
             url,
         )
