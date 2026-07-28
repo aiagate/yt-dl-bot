@@ -29,6 +29,7 @@ from application_errors import (
 )
 from cogs.twitchcog import TwitchCog
 from cogs.youtubecog import YoutubeCog
+from cancellation import CancellationToken
 
 
 class VideoDownloadServiceTest(unittest.TestCase):
@@ -65,6 +66,23 @@ class VideoDownloadServiceTest(unittest.TestCase):
 
         self.assertIs(raised.exception.original_error, failure)
         self.assertIs(raised.exception.__cause__, failure)
+
+    def test_cancellable_download_uses_explicit_adapter_boundary(self):
+        downloader = Mock()
+        downloader.download_video_cancellable.return_value = {'id': 'video'}
+        token = CancellationToken()
+
+        result = VideoDownloadService(downloader).download(
+            'https://example.test',
+            cancellation_token=token,
+        )
+
+        self.assertEqual(result.info, {'id': 'video'})
+        downloader.download_video.assert_not_called()
+        downloader.download_video_cancellable.assert_called_once_with(
+            url='https://example.test',
+            cancellation_token=token,
+        )
 
     def test_typed_error_preserves_original_traceback(self):
         downloader = Mock()
@@ -358,6 +376,7 @@ class CogDelegationTest(unittest.IsolatedAsyncioTestCase):
         )
         bot.services.youtube_download.download.assert_called_once_with(
             'https://youtu.be/video',
+            cancellation_token=unittest.mock.ANY,
         )
         ctx.reply.assert_awaited_once_with('ready')
         ctx.invoke.assert_awaited_once_with(

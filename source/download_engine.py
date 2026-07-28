@@ -107,18 +107,34 @@ class DownloadEngine:
             raise
         return f"Video title : {info['title']}\nDownload start..."
 
-    def download_video(self, url, info_loader=None):
+    def download_video(
+        self,
+        url,
+        info_loader=None,
+        cancellation_token=None,
+    ):
+        self._raise_if_cancelled(cancellation_token)
         info_loader = info_loader or self.get_info
-        info = self._load_download_info(url, info_loader)
+        info = self._load_download_info(
+            url,
+            info_loader,
+            cancellation_token,
+        )
+        self._raise_if_cancelled(cancellation_token)
         title = build_output_name(info, self.dependencies.now())
         tmp_path = self.dependencies.tmp_path
         self.dependencies.ensure_directory(tmp_path)
         outpath = tmp_path / f'{title}.%(ext)s'
 
         with self.dependencies.ydl_factory(
-            self.build_options(str(outpath)),
+            self.build_options(
+                str(outpath),
+                cancellation_token=cancellation_token,
+            ),
         ) as ydl:
+            self._raise_if_cancelled(cancellation_token)
             downloaded_info = ydl.extract_info(url, download=True)
+            self._raise_if_cancelled(cancellation_token)
             artifacts = discover_download_artifacts(
                 info=downloaded_info,
                 ydl=ydl,
@@ -128,17 +144,20 @@ class DownloadEngine:
                 require_thumbnail=self.policy.require_thumbnail,
             )
 
+        self._raise_if_cancelled(cancellation_token)
         self._move_artifacts(artifacts)
         return downloaded_info
 
-    def _load_download_info(self, url, info_loader):
+    def _load_download_info(self, url, info_loader, cancellation_token):
         retry_policy = self.policy.retry_policy
         if retry_policy is None:
+            self._raise_if_cancelled(cancellation_token)
             return info_loader(url)
 
         attempts = 0
         waited_seconds = 0
         while True:
+            self._raise_if_cancelled(cancellation_token)
             attempts += 1
             try:
                 return info_loader(url)
@@ -168,7 +187,10 @@ class DownloadEngine:
                         attempts=attempts,
                         waited_seconds=waited_seconds,
                     ) from error
-                self.dependencies.sleep(wait_seconds)
+                if cancellation_token is not None:
+                    cancellation_token.wait(wait_seconds)
+                else:
+                    self.dependencies.sleep(wait_seconds)
                 waited_seconds += wait_seconds
 
     def _move_artifacts(self, artifacts):
@@ -227,6 +249,11 @@ class DownloadEngine:
                 )
             raise
 
+    @staticmethod
+    def _raise_if_cancelled(cancellation_token):
+        if cancellation_token is not None:
+            cancellation_token.raise_if_cancelled()
+
     def live_timer(self, info):
         if type(info) == dict:
             return 0
@@ -240,7 +267,7 @@ class DownloadEngine:
                 return wait_seconds
         raise info
 
-    def build_options(self, outpath):
+    def build_options(self, outpath, cancellation_token=None):
         options = {
             'outtmpl': outpath,
             'format': 'bestvideo+bestaudio/best',
@@ -280,4 +307,8 @@ class DownloadEngine:
             and self.dependencies.path_exists(self.policy.cookie_path)
         ):
             options['cookiefile'] = str(self.policy.cookie_path)
+        if cancellation_token is not None:
+            options['progress_hooks'] = [
+                lambda _: cancellation_token.raise_if_cancelled(),
+            ]
         return options
