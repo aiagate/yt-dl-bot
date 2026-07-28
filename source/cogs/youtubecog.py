@@ -4,7 +4,6 @@
 import datetime
 import importlib
 import os
-import requests
 import shutil
 from functools import partial
 
@@ -16,6 +15,7 @@ from discord.ext import commands
 import youtubemodule
 import chatdatamodule
 import property
+from url_validation import validate_service_url
 
 
 class YoutubeCog(commands.Cog):
@@ -28,12 +28,7 @@ class YoutubeCog(commands.Cog):
 
     @staticmethod
     def parse_url(url):
-        try:
-            url = requests.get(url).url.split('&')[0]
-            # parsed_url = urllib.parse.urlparse(url)
-            return url
-        except Exception as e:
-            raise e
+        return validate_service_url(url, 'youtube')
 
     @commands.group(name='youtube')
     async def youtube_cog(self, ctx):
