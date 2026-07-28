@@ -1,0 +1,50 @@
+[
+  {
+    "name": "youtube live hours",
+    "type": "download",
+    "message": "ERROR: [youtube] abc: This live event will begin in 2 hours.",
+    "kind": "youtube_scheduled",
+    "retryable": true,
+    "wait_seconds": 5400.0
+  },
+  {
+    "name": "youtube live shortly",
+    "type": "download",
+    "message": "This live event will begin shortly.",
+    "kind": "youtube_scheduled",
+    "retryable": true,
+    "wait_seconds": 15
+  },
+  {
+    "name": "youtube premiere minutes",
+    "type": "download",
+    "message": "Premieres in 12 minutes.",
+    "kind": "youtube_scheduled",
+    "retryable": true,
+    "wait_seconds": 690.0
+  },
+  {
+    "name": "twitch offline nested detail",
+    "type": "nested",
+    "message": "ERROR: [twitch:stream] channel: The channel is not currently live",
+    "kind": "twitch_offline",
+    "retryable": false,
+    "wait_seconds": null
+  },
+  {
+    "name": "unknown youtube wording",
+    "type": "download",
+    "message": "This broadcast is planned for tomorrow.",
+    "kind": "unknown",
+    "retryable": false,
+    "wait_seconds": null
+  },
+  {
+    "name": "unparseable scheduled wait",
+    "type": "download",
+    "message": "This live event will begin next week.",
+    "kind": "unknown",
+    "retryable": false,
+    "wait_seconds": null
+  }
+]
