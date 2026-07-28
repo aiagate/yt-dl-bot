@@ -12,11 +12,17 @@ import yt_dlp
 
 # ---local library---
 import property
-from download_service import DownloadDependencies
+from download_service import (
+    DownloadDependencies,
+    DownloadRetryLimitExceeded,
+    PermanentDownloadError,
+    RetryPolicy,
+    RetryStatus,
+)
 
 
 class YoutubeModule():
-    def __init__(self, dependencies=None):
+    def __init__(self, dependencies=None, retry_policy=None):
         self.dependencies = dependencies or DownloadDependencies(
             ydl_factory=yt_dlp.YoutubeDL,
             now=datetime.datetime.now,
@@ -27,6 +33,7 @@ class YoutubeModule():
             tmp_path=property.TMP_PATH,
             save_path=property.SAVE_PATH,
         )
+        self.retry_policy = retry_policy or RetryPolicy()
 
     def data_check(self, url, ydl_ops={}):
         #URLから動画情報を抽出
@@ -55,9 +62,12 @@ class YoutubeModule():
 
     def download_video(self, url):
         is_download = False
+        attempts = 0
+        waited_seconds = 0
 
         #ライブ配信の場合、ライブ開始まで待機
         while is_download != True:
+            attempts += 1
             try:
                 #ダウンロード処理
                 info = self.get_info(url)
@@ -73,8 +83,30 @@ class YoutubeModule():
                 raise e
 
             #待機時間を計算しジョブを待機させる
-            sleeptime = self.live_timer(info=info)
+            decision = self.retry_policy.decide(info)
+            if decision.status is RetryStatus.PERMANENT_FAILURE:
+                raise PermanentDownloadError(
+                    'Download failure is not retryable',
+                    original_error=info,
+                    attempts=attempts,
+                    waited_seconds=waited_seconds,
+                ) from info
+
+            sleeptime = decision.wait_seconds
+            if (
+                attempts >= self.retry_policy.max_attempts
+                or waited_seconds + sleeptime
+                > self.retry_policy.max_wait_seconds
+            ):
+                raise DownloadRetryLimitExceeded(
+                    'Download retry limit exceeded',
+                    original_error=info,
+                    attempts=attempts,
+                    waited_seconds=waited_seconds,
+                ) from info
+
             self.dependencies.sleep(sleeptime)
+            waited_seconds += sleeptime
 
         # is_download==True の場合、ダウンロード処理を開始する
         if is_download == True:
@@ -132,37 +164,10 @@ class YoutubeModule():
     def live_timer(self, info):
         if type(info) == dict:
             return 0
-        elif type(info) == yt_dlp.utils.DownloadError:
-            if 'This live event will begin in' in str(info.args) or 'Premiere' in str(info.args):
-
-                # 'ERROR: This live event will begin in 77 minutes.'
-                # 'ERROR: Premieres in 7 hours'
-                args = str(info.args).split()
-                time = -1
-                for arg in args:
-                    try:
-                        time = int(arg) - 0.5
-                    except:
-                        if 'days' in arg:
-                            time = time * 86400
-                        elif 'hours' in arg:
-                            time = time * 3600
-                        elif 'minutes' in arg:
-                            time = time * 60
-                        elif 'few' in arg:
-                            time = 15
-                        elif 'shortly' in arg:
-                            time = 15
-                        else:
-                            pass
-                if time >= 0:
-                    return time
-                else:
-                    raise info
-            else:
-                raise info
-        else:
-            raise info
+        decision = self.retry_policy.decide(info)
+        if decision.status is RetryStatus.RETRYABLE:
+            return decision.wait_seconds
+        raise info
 
     def ops(self, info, outpath):
         ydl_ops = {

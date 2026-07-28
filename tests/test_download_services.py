@@ -21,7 +21,14 @@ REQUIRED_ENVIRONMENT = {
 }
 
 with patch.dict(os.environ, REQUIRED_ENVIRONMENT):
-    from download_service import DownloadDependencies
+    from download_service import (
+        DownloadDependencies,
+        DownloadRetryLimitExceeded,
+        PermanentDownloadError,
+        RetryDecision,
+        RetryPolicy,
+        RetryStatus,
+    )
     from youtubemodule import YoutubeModule
     from ytdlpmodule import YtdlpModule
 
@@ -137,6 +144,91 @@ class YoutubeModuleBoundaryTest(DownloadModuleTestCase, unittest.TestCase):
 
         self.sleep.assert_called_once_with(30.0)
         self.assertEqual(self.module.get_info.call_count, 2)
+
+    def test_permanent_download_error_fails_without_sleeping(self):
+        error = yt_dlp.utils.DownloadError('Video unavailable')
+        self.module.get_info = Mock(side_effect=error)
+
+        with self.assertRaises(PermanentDownloadError) as raised:
+            self.module.download_video('https://youtu.be/video')
+
+        self.assertIs(raised.exception.original_error, error)
+        self.assertEqual(raised.exception.attempts, 1)
+        self.sleep.assert_not_called()
+
+    def test_retry_attempt_limit_is_enforced(self):
+        error = yt_dlp.utils.DownloadError(
+            'This live event will begin in 1 minutes.',
+        )
+        self.module = YoutubeModule(
+            self.dependencies,
+            retry_policy=RetryPolicy(
+                max_attempts=2,
+                max_wait_seconds=3600,
+            ),
+        )
+        self.module.get_info = Mock(side_effect=error)
+
+        with self.assertRaises(DownloadRetryLimitExceeded) as raised:
+            self.module.download_video('https://youtu.be/video')
+
+        self.assertEqual(raised.exception.attempts, 2)
+        self.assertEqual(raised.exception.waited_seconds, 30.0)
+        self.sleep.assert_called_once_with(30.0)
+
+    def test_total_wait_limit_is_enforced_before_sleep(self):
+        error = yt_dlp.utils.DownloadError(
+            'This live event will begin in 2 hours.',
+        )
+        self.module = YoutubeModule(
+            self.dependencies,
+            retry_policy=RetryPolicy(
+                max_attempts=10,
+                max_wait_seconds=3600,
+            ),
+        )
+        self.module.get_info = Mock(side_effect=error)
+
+        with self.assertRaises(DownloadRetryLimitExceeded) as raised:
+            self.module.download_video('https://youtu.be/video')
+
+        self.assertEqual(raised.exception.attempts, 1)
+        self.assertEqual(raised.exception.waited_seconds, 0)
+        self.sleep.assert_not_called()
+
+    def test_live_timer_retains_retry_delay_compatibility(self):
+        error = yt_dlp.utils.DownloadError(
+            'Premieres in 7 hours.',
+        )
+
+        self.assertEqual(self.module.live_timer(error), 23400.0)
+
+
+class RetryPolicyTest(unittest.TestCase):
+    def test_distinguishes_retryable_and_permanent_failures(self):
+        policy = RetryPolicy()
+
+        retryable = policy.decide(yt_dlp.utils.DownloadError(
+            'This live event will begin shortly.',
+        ))
+        permanent = policy.decide(
+            yt_dlp.utils.ExtractorError('Unsupported URL'),
+        )
+
+        self.assertEqual(
+            retryable,
+            RetryDecision(RetryStatus.RETRYABLE, 15),
+        )
+        self.assertEqual(
+            permanent,
+            RetryDecision(RetryStatus.PERMANENT_FAILURE),
+        )
+
+    def test_rejects_invalid_retry_limits(self):
+        with self.assertRaises(ValueError):
+            RetryPolicy(max_attempts=0)
+        with self.assertRaises(ValueError):
+            RetryPolicy(max_wait_seconds=-1)
 
 
 class YtdlpModuleBoundaryTest(DownloadModuleTestCase, unittest.TestCase):
