@@ -12,11 +12,21 @@ import yt_dlp
 
 # ---local library---
 import property
+from download_service import DownloadDependencies
 
 
 class YtdlpModule():
-    def __init__(self):
-        pass
+    def __init__(self, dependencies=None):
+        self.dependencies = dependencies or DownloadDependencies(
+            ydl_factory=yt_dlp.YoutubeDL,
+            now=datetime.datetime.now,
+            sleep=time.sleep,
+            path_exists=os.path.exists,
+            make_directory=os.mkdir,
+            move=shutil.move,
+            tmp_path=property.TMP_PATH,
+            save_path=property.SAVE_PATH,
+        )
 
     def data_check(self, url, ydl_ops={}):
 
@@ -33,7 +43,7 @@ class YtdlpModule():
             raise e
 
     def download_video(self, url, ops={}):
-        now = datetime.datetime.now()
+        now = self.dependencies.now()
         info = self.get_info(url)
 
         #ファイルパス・ファイル名を作成
@@ -52,38 +62,50 @@ class YtdlpModule():
         info.setdefault('fulltitle', info['title'])
         title = date + '_%(id)s' % info
         title = title.translate(str.maketrans(ng_word))
-        tmp_path = property.TMP_PATH
-        if not os.path.exists(tmp_path):
-            os.mkdir(tmp_path)
+        tmp_path = self.dependencies.tmp_path
+        if not self.dependencies.path_exists(tmp_path):
+            self.dependencies.make_directory(tmp_path)
         outpath = f'{tmp_path}{title}.%(ext)s'
-        with yt_dlp.YoutubeDL(self.ops(outpath=outpath)) as ydl:
+        with self.dependencies.ydl_factory(self.ops(outpath=outpath)) as ydl:
             info = ydl.extract_info(url, download=True)
 
         # ファイルをcacheフォルダから移動
-        save_path = property.SAVE_PATH
+        save_path = self.dependencies.save_path
         # フォルダがない場合は作成
-        if not os.path.exists(save_path):
-            os.mkdir(save_path)
-        if not os.path.exists(f"{save_path}metadata/"):
-            os.mkdir(f"{save_path}metadata/")
-        if not os.path.exists(f'{save_path}thumbnail/'):
-            os.mkdir(f'{save_path}thumbnail/')
+        if not self.dependencies.path_exists(save_path):
+            self.dependencies.make_directory(save_path)
+        if not self.dependencies.path_exists(f"{save_path}metadata/"):
+            self.dependencies.make_directory(f"{save_path}metadata/")
+        if not self.dependencies.path_exists(f'{save_path}thumbnail/'):
+            self.dependencies.make_directory(f'{save_path}thumbnail/')
 
-        if os.path.exists(f'{tmp_path}{title}.mp4'):
-            shutil.move(f'{tmp_path}{title}.mp4',  f'{save_path}')
-        if os.path.exists(f'{tmp_path}{title}.info.json'):
-            shutil.move(f'{tmp_path}{title}.info.json',  f'{save_path}metadata/')
-        if os.path.exists(f'{tmp_path}{title}.webp'):
-            shutil.move(f'{tmp_path}{title}.webp',  f'{save_path}thumbnail/')
-        if os.path.exists(f'{tmp_path}{title}.jpg'):
-            shutil.move(f'{tmp_path}{title}.jpg',  f'{save_path}thumbnail/')
-        if os.path.exists(f'{tmp_path}{title}.jpeg'):
-            shutil.move(f'{tmp_path}{title}.jpeg',  f'{save_path}thumbnail/')
+        if self.dependencies.path_exists(f'{tmp_path}{title}.mp4'):
+            self.dependencies.move(f'{tmp_path}{title}.mp4', f'{save_path}')
+        if self.dependencies.path_exists(f'{tmp_path}{title}.info.json'):
+            self.dependencies.move(
+                f'{tmp_path}{title}.info.json',
+                f'{save_path}metadata/',
+            )
+        if self.dependencies.path_exists(f'{tmp_path}{title}.webp'):
+            self.dependencies.move(
+                f'{tmp_path}{title}.webp',
+                f'{save_path}thumbnail/',
+            )
+        if self.dependencies.path_exists(f'{tmp_path}{title}.jpg'):
+            self.dependencies.move(
+                f'{tmp_path}{title}.jpg',
+                f'{save_path}thumbnail/',
+            )
+        if self.dependencies.path_exists(f'{tmp_path}{title}.jpeg'):
+            self.dependencies.move(
+                f'{tmp_path}{title}.jpeg',
+                f'{save_path}thumbnail/',
+            )
 
         return info
 
     def get_info(self, url):
-        with yt_dlp.YoutubeDL() as ydl:
+        with self.dependencies.ydl_factory() as ydl:
             info = ydl.extract_info(url, download=False)
         return info
 
@@ -157,7 +179,7 @@ class YtdlpModule():
             ],
         }
         cookie_path = 'cookie/cookies.txt'
-        if os.path.exists(cookie_path):
+        if self.dependencies.path_exists(cookie_path):
             ydl_ops['cookiefile'] = cookie_path
         return ydl_ops
 
