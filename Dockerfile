@@ -1,3 +1,5 @@
+FROM ghcr.io/astral-sh/uv:0.11.29 AS uv
+
 FROM python:3.12-slim
 
 RUN apt-get update \
@@ -5,12 +7,10 @@ RUN apt-get update \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
-COPY ./source/requirements.txt ./requirements.txt
-COPY ./dist/* ./
-RUN pip install --no-cache-dir --upgrade pip \
-    && pip install --no-cache-dir -r requirements.txt \
-    && pip install --no-cache-dir pytchat-0.5.6.tar.gz
+COPY --from=uv /uv /uvx /bin/
+COPY pyproject.toml uv.lock ./
+RUN uv sync --locked --no-dev --no-cache
 
 COPY ./source/ ./
 
-CMD ["python3", "discord_bot_main.py"]
+CMD ["/app/.venv/bin/python", "discord_bot_main.py"]
