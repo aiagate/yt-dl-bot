@@ -36,9 +36,9 @@ class MyBot(commands.Bot):
             try:
                 await self.load_extension(cog)
                 self.logger.info(f'Success: Cog loaded ({cog})')
-            except Exception as e:
-                self.logger.error(e)
-                raise e
+            except Exception:
+                self.logger.exception('Failed to load Cog: %s', cog)
+                raise
                 # traceback.print_exc()
 
     async def on_ready(self):

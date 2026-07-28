@@ -38,30 +38,19 @@ class TwitchCog(commands.Cog):
         except TwitchStreamOffline:
             await ctx.reply('このチャンネルでライブは始まっていません。')
             return
-        except Exception as e:
-            await ctx.invoke(self.bot.get_command('send_error_log'), e)
-            raise e
 
         await ctx.reply(result)
 
-        try:
-            result = await asyncio.to_thread(
-                self.download_service.download,
-                url,
-            )
-        except Exception as e:
-            await ctx.invoke(self.bot.get_command('send_error_log'), e)
-            raise e
+        result = await asyncio.to_thread(
+            self.download_service.download,
+            url,
+        )
         self.bot.logger.info('Download Success!')
-        try:
-            await ctx.invoke(
-                self.bot.get_command('send_video_output_log'),
-                info=result.info,
-                url=result.url,
-            )
-        except Exception as e:
-            await ctx.invoke(self.bot.get_command('send_error_log'), e)
-            raise e
+        await ctx.invoke(
+            self.bot.get_command('send_video_output_log'),
+            info=result.info,
+            url=result.url,
+        )
         return
 
     @download_video.error

@@ -3,10 +3,9 @@
 from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
-import re
 from typing import Callable, Protocol
 
-import yt_dlp
+from external_error_adapter import youtube_scheduled_delay
 
 
 class YoutubeDLFactory(Protocol):
@@ -70,36 +69,7 @@ class RetryPolicy:
             raise ValueError('max_wait_seconds must not be negative')
 
     def decide(self, error) -> RetryDecision:
-        if not isinstance(error, yt_dlp.utils.DownloadError):
+        wait_seconds = youtube_scheduled_delay(error)
+        if wait_seconds is None:
             return RetryDecision(RetryStatus.PERMANENT_FAILURE)
-
-        message = str(error.args)
-        if (
-            'This live event will begin' not in message
-            and 'Premiere' not in message
-        ):
-            return RetryDecision(RetryStatus.PERMANENT_FAILURE)
-
-        if 'few' in message or 'shortly' in message:
-            return RetryDecision(RetryStatus.RETRYABLE, 15)
-
-        match = re.search(
-            r'(\d+)\s+(days?|hours?|minutes?|seconds?)',
-            message,
-        )
-        if match is None:
-            return RetryDecision(RetryStatus.PERMANENT_FAILURE)
-
-        value = max(int(match.group(1)) - 0.5, 0)
-        unit = match.group(2)
-        multiplier = {
-            'day': 86400,
-            'days': 86400,
-            'hour': 3600,
-            'hours': 3600,
-            'minute': 60,
-            'minutes': 60,
-            'second': 1,
-            'seconds': 1,
-        }[unit]
-        return RetryDecision(RetryStatus.RETRYABLE, value * multiplier)
+        return RetryDecision(RetryStatus.RETRYABLE, wait_seconds)

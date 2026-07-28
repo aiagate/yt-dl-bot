@@ -12,6 +12,7 @@ import yt_dlp
 
 # ---local library---
 from download_service import DownloadDependencies
+from external_error_adapter import error_detail, youtube_scheduled_delay
 from setting import Settings
 
 
@@ -32,18 +33,14 @@ class YtdlpModule():
         self.dependencies = dependencies
 
     def data_check(self, url, ydl_ops={}):
-
         #URLから動画情報を抽出
-        try:
-            info = self.get_info(url=url)
+        info = self.get_info(url=url)
 
-            #動画情報の抽出が正常終了した場合、メッセージを返す
-            title = '%(title)s' % info
-            message = 'Video title : ' + title + '\n' \
-                      'Download start...'
-            return message
-        except Exception as e:
-            raise e
+        #動画情報の抽出が正常終了した場合、メッセージを返す
+        title = '%(title)s' % info
+        message = 'Video title : ' + title + '\n' \
+                  'Download start...'
+        return message
 
     def download_video(self, url, ops={}):
         now = self.dependencies.now()
@@ -115,37 +112,10 @@ class YtdlpModule():
     def live_timer(self, info):
         if type(info) == dict:
             return 0
-        elif type(info) == yt_dlp.utils.DownloadError:
-            if 'This live event will begin in' in str(info.args) or 'Premiere' in str(info.args):
-
-                # 'ERROR: This live event will begin in 77 minutes.'
-                # 'ERROR: Premieres in 7 hours'
-                args = str(info.args).split()
-                time = -1
-                for arg in args:
-                    try:
-                        time = int(arg) - 0.5
-                    except:
-                        if 'days' in arg:
-                            time = time * 86400
-                        elif 'hours' in arg:
-                            time = time * 3600
-                        elif 'minutes' in arg:
-                            time = time * 60
-                        elif 'few' in arg:
-                            time = 15
-                        elif 'shortly' in arg:
-                            time = 15
-                        else:
-                            pass
-                if time >= 0:
-                    return time
-                else:
-                    raise info
-            else:
-                raise info
-        else:
-            raise info
+        wait_seconds = youtube_scheduled_delay(info)
+        if wait_seconds is not None:
+            return wait_seconds
+        raise info
 
     def ops(self, outpath):
         ydl_ops = {
@@ -202,18 +172,7 @@ if __name__ == "__main__":
         print('==================================================================')
         print(type(e))
         print('==================================================================')
-        print(e.args)
-        print('==================================================================')
-        print(e.exc_info)
-        print('==================================================================')
-        print(type(e.exc_info[0]))
-        print(e.exc_info[0])
-        print('==================================================================')
-        print(type(e.exc_info[1]))
-        print(e.exc_info[1])
-        print('==================================================================')
-        print(type(e.exc_info[2]))
-        print(e.exc_info[2])
+        print(error_detail(e))
         print('==================================================================')
     # print(type(title))
     # message = ydm.live_timer(info)

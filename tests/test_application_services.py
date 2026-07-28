@@ -1,5 +1,6 @@
 import asyncio
 import sys
+import traceback
 import unittest
 from pathlib import Path
 from types import SimpleNamespace
@@ -17,6 +18,12 @@ from application_services import (
     VideoDownloadService,
     YoutubeHighlightService,
     split_highlight_text,
+)
+from application_errors import (
+    ArtifactStorageError,
+    HighlightCreationError,
+    VideoCheckError,
+    VideoDownloadError,
 )
 from cogs.twitchcog import TwitchCog
 from cogs.youtubecog import YoutubeCog
@@ -50,12 +57,36 @@ class VideoDownloadServiceTest(unittest.TestCase):
         failure = RuntimeError('download failed')
         downloader.download_video.side_effect = failure
 
-        with self.assertRaises(RuntimeError) as raised:
+        with self.assertRaises(VideoDownloadError) as raised:
             VideoDownloadService(downloader).download(
                 'https://example.test',
             )
 
-        self.assertIs(raised.exception, failure)
+        self.assertIs(raised.exception.original_error, failure)
+        self.assertIs(raised.exception.__cause__, failure)
+
+    def test_typed_error_preserves_original_traceback(self):
+        downloader = Mock()
+
+        def fail_download(*, url):
+            raise OSError(f'adapter failure for {url}')
+
+        downloader.download_video.side_effect = fail_download
+
+        with self.assertRaises(VideoDownloadError) as raised:
+            VideoDownloadService(downloader).download(
+                'https://example.test',
+            )
+
+        cause = raised.exception.__cause__
+        self.assertIsInstance(cause, OSError)
+        self.assertIsNotNone(cause.__traceback__)
+        formatted = ''.join(traceback.format_exception(raised.exception))
+        self.assertIn('fail_download', formatted)
+        self.assertIn(
+            'The above exception was the direct cause',
+            formatted,
+        )
 
 
 class TwitchDownloadServiceTest(unittest.TestCase):
@@ -79,12 +110,13 @@ class TwitchDownloadServiceTest(unittest.TestCase):
         error = RuntimeError('network failed')
         downloader.data_check.side_effect = error
 
-        with self.assertRaises(RuntimeError) as raised:
+        with self.assertRaises(VideoCheckError) as raised:
             TwitchDownloadService(downloader).check(
                 'https://www.twitch.tv/channel',
             )
 
-        self.assertIs(raised.exception, error)
+        self.assertIs(raised.exception.original_error, error)
+        self.assertIs(raised.exception.__cause__, error)
 
 
 class HighlightServiceTest(unittest.TestCase):
@@ -137,6 +169,34 @@ class HighlightServiceTest(unittest.TestCase):
 
         mkdir.assert_called_once_with('/graphs/')
         move.assert_called_once_with('/tmp/graph.png', '/graphs/')
+
+    def test_highlight_external_failure_is_typed(self):
+        youtube = Mock()
+        failure = RuntimeError('yt-dlp failed')
+        youtube.get_videoid.side_effect = failure
+        service = YoutubeHighlightService(
+            settings=SimpleNamespace(GRAPH_SAVE_PATH='/graphs/'),
+            youtube=youtube,
+        )
+
+        with self.assertRaises(HighlightCreationError) as raised:
+            service.create('https://youtu.be/video')
+
+        self.assertIs(raised.exception.__cause__, failure)
+
+    def test_filesystem_failure_is_typed(self):
+        failure = OSError('disk full')
+        service = YoutubeHighlightService(
+            settings=SimpleNamespace(GRAPH_SAVE_PATH='/graphs/'),
+            youtube=Mock(),
+            path_exists=Mock(return_value=True),
+            move=Mock(side_effect=failure),
+        )
+
+        with self.assertRaises(ArtifactStorageError) as raised:
+            service.archive_graph('/tmp/graph.png')
+
+        self.assertIs(raised.exception.__cause__, failure)
 
     def test_empty_highlights_get_a_placeholder(self):
         self.assertEqual(
@@ -346,6 +406,41 @@ class CogDelegationTest(unittest.IsolatedAsyncioTestCase):
         bot.services.youtube_download.download.assert_not_called()
         ctx.reply.assert_not_awaited()
         ctx.invoke.assert_not_awaited()
+
+    async def test_command_failure_is_notified_once_by_error_handler(self):
+        bot = self.make_bot()
+        failure = VideoCheckError(
+            'Unable to check video',
+            original_error=RuntimeError('yt-dlp failed'),
+        )
+        bot.services.youtube_download.check.side_effect = failure
+        ctx = Mock()
+        ctx.reply = AsyncMock()
+        ctx.invoke = AsyncMock()
+        cog = YoutubeCog(bot)
+
+        with (
+            patch('asyncio.to_thread', self.to_thread_mock()),
+            self.assertRaises(VideoCheckError),
+        ):
+            await YoutubeCog.download_video.callback(
+                cog,
+                ctx,
+                'https://youtu.be/video',
+            )
+
+        ctx.invoke.assert_not_awaited()
+
+        await YoutubeCog.download_video_error(
+            cog,
+            ctx,
+            failure,
+        )
+
+        ctx.invoke.assert_awaited_once_with(
+            'send_error_log',
+            failure,
+        )
 
 
 if __name__ == '__main__':
