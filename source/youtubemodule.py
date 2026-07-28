@@ -12,11 +12,21 @@ import yt_dlp
 
 # ---local library---
 import property
+from download_service import DownloadDependencies
 
 
 class YoutubeModule():
-    def __init__(self):
-        pass
+    def __init__(self, dependencies=None):
+        self.dependencies = dependencies or DownloadDependencies(
+            ydl_factory=yt_dlp.YoutubeDL,
+            now=datetime.datetime.now,
+            sleep=time.sleep,
+            path_exists=os.path.exists,
+            make_directory=os.mkdir,
+            move=shutil.move,
+            tmp_path=property.TMP_PATH,
+            save_path=property.SAVE_PATH,
+        )
 
     def data_check(self, url, ydl_ops={}):
         #URLから動画情報を抽出
@@ -64,11 +74,11 @@ class YoutubeModule():
 
             #待機時間を計算しジョブを待機させる
             sleeptime = self.live_timer(info=info)
-            time.sleep(sleeptime)
+            self.dependencies.sleep(sleeptime)
 
         # is_download==True の場合、ダウンロード処理を開始する
         if is_download == True:
-            now = datetime.datetime.now()
+            now = self.dependencies.now()
 
             #ファイルパス・ファイル名を作成
             date = now.strftime('%Y-%m-%d-%H%M')
@@ -86,28 +96,36 @@ class YoutubeModule():
             info.setdefault('fulltitle', info['title'])
             title = date + '_%(id)s' % info
             title = title.translate(str.maketrans(ng_word))
-            tmp_path = property.TMP_PATH
-            if not os.path.exists(tmp_path):
-                os.mkdir(tmp_path)
+            tmp_path = self.dependencies.tmp_path
+            if not self.dependencies.path_exists(tmp_path):
+                self.dependencies.make_directory(tmp_path)
             outpath = f'{tmp_path}{title}.%(ext)s'
 
-            with yt_dlp.YoutubeDL(self.ops(info=info, outpath=outpath)) as ydl:
+            with self.dependencies.ydl_factory(
+                self.ops(info=info, outpath=outpath),
+            ) as ydl:
                 info = ydl.extract_info(url, download=True)
 
             #ファイルをcacheフォルダから移動
-            save_path = property.SAVE_PATH
-            if not os.path.exists(save_path):
-                os.mkdir(save_path)
-            shutil.move(f'{tmp_path}{title}.mp4',  f'{save_path}')
-            if not os.path.exists(f"{save_path}metadata/"):
-                os.mkdir(f"{save_path}metadata/")
-            shutil.move(f'{tmp_path}{title}.info.json',  f'{save_path}metadata/')
-            if not os.path.exists(f'{save_path}thumbnail/'):
-                os.mkdir(f'{save_path}thumbnail/')
-            shutil.move(f'{tmp_path}{title}.webp',  f'{save_path}thumbnail/')
+            save_path = self.dependencies.save_path
+            if not self.dependencies.path_exists(save_path):
+                self.dependencies.make_directory(save_path)
+            self.dependencies.move(f'{tmp_path}{title}.mp4', f'{save_path}')
+            if not self.dependencies.path_exists(f"{save_path}metadata/"):
+                self.dependencies.make_directory(f"{save_path}metadata/")
+            self.dependencies.move(
+                f'{tmp_path}{title}.info.json',
+                f'{save_path}metadata/',
+            )
+            if not self.dependencies.path_exists(f'{save_path}thumbnail/'):
+                self.dependencies.make_directory(f'{save_path}thumbnail/')
+            self.dependencies.move(
+                f'{tmp_path}{title}.webp',
+                f'{save_path}thumbnail/',
+            )
             return info
     def get_info(self, url):
-        with yt_dlp.YoutubeDL() as ydl:
+        with self.dependencies.ydl_factory() as ydl:
             info = ydl.extract_info(url, download=False)
         return info
 
