@@ -1,18 +1,15 @@
-#! ./.venv/bin/python
+#! .venv/bin/python
 # -*- coding: utf-8 -*-
 
 # ---standard library---
 import datetime
 import logging
 from logging import getLogger
-import time
 
 # ---third party library---
-from pytchat import create
 
 # ---local library---
 from sql_connect import DatabaseConnect
-import youtubeapi
 import property
 
 
@@ -40,7 +37,7 @@ class ChatDataExtractor():
                 # self.logger.debug(f'drop table if exists {self.table_name}')
                 # db.cursor.execute(f'DROP TABLE IF EXISTS {self.table_name}')
                 
-                db.cursor.execute(f'SELECT elapsedTime FROM {self.table_name} where video_id = \"{video_id}\" AND message like \"%{keyword}%\" order by elapsedTime;')
+                db.cursor.execute(f'SELECT elapsed_time FROM {self.table_name} where video_id = \"{video_id}\" AND message like \"%{keyword}%\" order by elapsed_time;')
                 result = db.cursor.fetchall()
             except Exception as e:
                 raise e

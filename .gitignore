@@ -1,13 +1,33 @@
+!*.gitkeep
+
 .vscode/
 *.code-workspace
 
+# Local configuration and credentials
+.env
+.env.*
+!.env.example
+source/.env
+source/.env.*
+
+# Python
 __pycache__/
-tmp/
+
 venv/
 .venv/
 
 *.db
 *.db-journal
-test*.*
-property.py
-*.log
+
+dist/*
+cookie/*
+!cookie/.gitkeep
+downloads/*
+!downloads/.gitkeep
+databases/*
+!databases/.gitkeep
+logs/*
+!logs/.gitkeep
+source/downloads/*
+source/databases/*
+source/logs/*

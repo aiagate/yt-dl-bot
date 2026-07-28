@@ -173,10 +173,10 @@ class YoutubeModule():
             if not os.path.exists(save_path):
                 os.mkdir(save_path)
             shutil.move(f'{tmp_path}{title}.mp4',  f'{save_path}')
-            if not os.path.exists(save_path):
+            if not os.path.exists(f"{save_path}metadata/"):
                 os.mkdir(f"{save_path}metadata/")
             shutil.move(f'{tmp_path}{title}.info.json',  f'{save_path}metadata/')
-            if not os.path.exists(save_path):
+            if not os.path.exists(f'{save_path}thumbnail/'):
                 os.mkdir(f'{save_path}thumbnail/')
             shutil.move(f'{tmp_path}{title}.webp',  f'{save_path}thumbnail/')
             return info
@@ -301,28 +301,19 @@ class YoutubeModule():
 
 
 if __name__ == "__main__":
+    import json
     ydm = YoutubeModule()
-    url = input('URL: ')
+    # url = input('URL: ')
+    url = 'https://youtu.be/_vl8MJc7oHI'
     try:
         info = ydm.get_info(url)
         print('%(is_live)s' % info)
+        print(info['channel'])
+        print(info.keys())
+        print(info['release_timestamp'])
+        print(info['duration'])
+        # print(json.dumps(info, indent=2))
     except Exception as e:
         print('==================================================================')
         print(type(e))
         print('==================================================================')
-        print(e.args)
-        print('==================================================================')
-        print(e.exc_info)
-        print('==================================================================')
-        print(type(e.exc_info[0]))
-        print(e.exc_info[0])
-        print('==================================================================')
-        print(type(e.exc_info[1]))
-        print(e.exc_info[1])
-        print('==================================================================')
-        print(type(e.exc_info[2]))
-        print(e.exc_info[2])
-        print('==================================================================')
-    # print(type(title))
-    # message = ydm.live_timer(info)
-    # print(message)
