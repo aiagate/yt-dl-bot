@@ -136,5 +136,5 @@ class YoutubeCog(commands.Cog):
         return
 
 
-def setup(bot):
-    return bot.add_cog(YoutubeCog(bot))
+async def setup(bot):
+    await bot.add_cog(YoutubeCog(bot))

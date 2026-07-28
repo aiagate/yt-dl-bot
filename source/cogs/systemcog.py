@@ -148,5 +148,5 @@ class SystemCog(commands.Cog):
     async def send_highlight_output_log(self, ctx, file, embed):
         await self.bot.get_channel(property.HIGHLIGHT_OUTPUT_CHANNEL).send(file=file, embed=embed)
 
-def setup(bot):
-    return bot.add_cog(SystemCog(bot))
+async def setup(bot):
+    await bot.add_cog(SystemCog(bot))
