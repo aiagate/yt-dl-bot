@@ -1,3 +1,4 @@
+import asyncio
 import sys
 import unittest
 from pathlib import Path
@@ -192,11 +193,14 @@ class CogDelegationTest(unittest.IsolatedAsyncioTestCase):
         bot.logger = Mock()
         bot.get_command.side_effect = lambda name: name
 
-        async def run_in_executor(executor, function):
-            return function()
-
-        bot.loop.run_in_executor = AsyncMock(side_effect=run_in_executor)
         return bot
+
+    @staticmethod
+    def to_thread_mock():
+        async def run(function, *args, **kwargs):
+            return function(*args, **kwargs)
+
+        return AsyncMock(side_effect=run)
 
     async def test_youtube_cog_only_coordinates_download_responses(self):
         bot = self.make_bot()
@@ -210,12 +214,23 @@ class CogDelegationTest(unittest.IsolatedAsyncioTestCase):
         ctx.invoke = AsyncMock()
         cog = YoutubeCog(bot)
 
-        await YoutubeCog.download_video.callback(
-            cog,
-            ctx,
-            'https://youtu.be/video',
-        )
+        to_thread = self.to_thread_mock()
+        with patch('asyncio.to_thread', to_thread):
+            await YoutubeCog.download_video.callback(
+                cog,
+                ctx,
+                'https://youtu.be/video',
+            )
 
+        self.assertEqual(to_thread.await_count, 2)
+        self.assertIs(
+            to_thread.await_args_list[0].args[0],
+            bot.services.youtube_download.check,
+        )
+        self.assertIs(
+            to_thread.await_args_list[1].args[0],
+            bot.services.youtube_download.download,
+        )
         bot.services.youtube_download.check.assert_called_once_with(
             'https://youtu.be/video',
         )
@@ -237,11 +252,13 @@ class CogDelegationTest(unittest.IsolatedAsyncioTestCase):
         ctx.invoke = AsyncMock()
         cog = TwitchCog(bot)
 
-        await TwitchCog.download_video.callback(
-            cog,
-            ctx,
-            'https://www.twitch.tv/channel',
-        )
+        to_thread = self.to_thread_mock()
+        with patch('asyncio.to_thread', to_thread):
+            await TwitchCog.download_video.callback(
+                cog,
+                ctx,
+                'https://www.twitch.tv/channel',
+            )
 
         ctx.reply.assert_awaited_once_with(
             'このチャンネルでライブは始まっていません。',
@@ -266,8 +283,12 @@ class CogDelegationTest(unittest.IsolatedAsyncioTestCase):
         embed = Mock()
 
         with (
-            patch('cogs.youtubecog.File', return_value='discord-file'),
+            patch(
+                'cogs.youtubecog.File',
+                return_value='discord-file',
+            ) as file_factory,
             patch('cogs.youtubecog.Embed', return_value=embed),
+            patch('asyncio.to_thread', self.to_thread_mock()) as to_thread,
         ):
             await YoutubeCog.get_highlight.callback(
                 cog,
@@ -293,6 +314,38 @@ class CogDelegationTest(unittest.IsolatedAsyncioTestCase):
             'discord-file',
             embed,
         )
+        self.assertEqual(to_thread.await_count, 3)
+        self.assertIs(
+            to_thread.await_args_list[0].args[0],
+            bot.services.youtube_highlight.create,
+        )
+        self.assertIs(to_thread.await_args_list[1].args[0], file_factory)
+        self.assertIs(
+            to_thread.await_args_list[2].args[0],
+            bot.services.youtube_highlight.archive_graph,
+        )
+
+    async def test_cancellation_stops_before_download_and_error_reply(self):
+        bot = self.make_bot()
+        ctx = Mock()
+        ctx.reply = AsyncMock()
+        ctx.invoke = AsyncMock()
+        cog = YoutubeCog(bot)
+        to_thread = AsyncMock(side_effect=asyncio.CancelledError)
+
+        with (
+            patch('asyncio.to_thread', to_thread),
+            self.assertRaises(asyncio.CancelledError),
+        ):
+            await YoutubeCog.download_video.callback(
+                cog,
+                ctx,
+                'https://youtu.be/video',
+            )
+
+        bot.services.youtube_download.download.assert_not_called()
+        ctx.reply.assert_not_awaited()
+        ctx.invoke.assert_not_awaited()
 
 
 if __name__ == '__main__':

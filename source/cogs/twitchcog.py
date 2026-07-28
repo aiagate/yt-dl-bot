@@ -1,7 +1,7 @@
 #! ./.venv/bin/python
 
 # ---standard library---
-from functools import partial
+import asyncio
 
 # ---third party library---
 from discord.ext import commands
@@ -30,9 +30,11 @@ class TwitchCog(commands.Cog):
     async def download_video(self, ctx, *args, **kwargs):
         url = self.parse_url(args[0])
 
-        fn = partial(self.download_service.check, url)
         try:
-            result = await self.bot.loop.run_in_executor(None, fn)
+            result = await asyncio.to_thread(
+                self.download_service.check,
+                url,
+            )
         except TwitchStreamOffline:
             await ctx.reply('このチャンネルでライブは始まっていません。')
             return
@@ -42,9 +44,11 @@ class TwitchCog(commands.Cog):
 
         await ctx.reply(result)
 
-        fn = partial(self.download_service.download, url)
         try:
-            result = await self.bot.loop.run_in_executor(None, fn)
+            result = await asyncio.to_thread(
+                self.download_service.download,
+                url,
+            )
         except Exception as e:
             await ctx.invoke(self.bot.get_command('send_error_log'), e)
             raise e
