@@ -18,6 +18,7 @@ from download_service import (
     RetryPolicy,
     RetryStatus,
 )
+from external_error_adapter import youtube_scheduled_notice
 from setting import Settings
 
 
@@ -49,19 +50,10 @@ class YoutubeModule():
                       'Download start...'
             return message
         except yt_dlp.utils.DownloadError as e:
-            error = str(e.exc_info[1])
-            if 'This live event will begin in' in error:
-                message = str(e.exc_info[1]) + '. Will be downloaded in ' + \
-                          str(e.exc_info[1]).replace('This live event will begin in ', '')
-                return message
-            elif 'Premieres' in error:
-                message = str(e.exc_info[1]) + '. Will be downloaded in ' + \
-                          str(e.exc_info[1]).replace('Premieres ', '')
-                return message
-            else:
-                raise e
-        except Exception as e:
-            raise e
+            notice = youtube_scheduled_notice(e)
+            if notice is not None:
+                return notice
+            raise
 
     def download_video(self, url):
         is_download = False
@@ -82,9 +74,6 @@ class YoutubeModule():
                 info = e
             except KeyError as e: # プレミア公開時のキーエラーを無視
                 info = e
-            except Exception as e:
-                raise e
-
             #待機時間を計算しジョブを待機させる
             decision = self.retry_policy.decide(info)
             if decision.status is RetryStatus.PERMANENT_FAILURE:

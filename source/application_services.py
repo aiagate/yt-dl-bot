@@ -5,7 +5,14 @@ import os
 import shutil
 from dataclasses import dataclass
 
+from application_errors import (
+    ArtifactStorageError,
+    HighlightCreationError,
+    VideoCheckError,
+    VideoDownloadError,
+)
 from chatdatamodule import ChatDataModule
+from external_error_adapter import error_detail, is_twitch_offline
 from youtubemodule import YoutubeModule
 from ytdlpmodule import YtdlpModule
 
@@ -54,24 +61,36 @@ class VideoDownloadService:
         self.downloader = downloader
 
     def check(self, url):
-        return self.downloader.data_check(url=url, ydl_ops={})
+        try:
+            return self.downloader.data_check(url=url, ydl_ops={})
+        except Exception as error:
+            raise VideoCheckError(
+                f'Unable to check video: {error_detail(error)}',
+                original_error=error,
+            ) from error
 
     def download(self, url):
-        return DownloadResult(
-            url=url,
-            info=self.downloader.download_video(url=url),
-        )
+        try:
+            info = self.downloader.download_video(url=url)
+        except Exception as error:
+            raise VideoDownloadError(
+                f'Unable to download video: {error_detail(error)}',
+                original_error=error,
+            ) from error
+        return DownloadResult(url=url, info=info)
 
 
 class TwitchDownloadService(VideoDownloadService):
     def check(self, url):
         try:
-            return super().check(url)
+            return self.downloader.data_check(url=url, ydl_ops={})
         except Exception as error:
-            detail = getattr(error, 'exc_info', (None, error))[1]
-            if 'The channel is not currently live' in str(detail):
-                raise TwitchStreamOffline(str(detail)) from error
-            raise
+            if is_twitch_offline(error):
+                raise TwitchStreamOffline(error_detail(error)) from error
+            raise VideoCheckError(
+                f'Unable to check Twitch stream: {error_detail(error)}',
+                original_error=error,
+            ) from error
 
 
 class YoutubeHighlightService:
@@ -94,11 +113,17 @@ class YoutubeHighlightService:
         self.move = move
 
     def create(self, url):
-        video_id = self.youtube.get_videoid(url=url)
-        video_info = self.youtube.get_info(url=url)
-        chat = self.chat_factory(video_id)
-        highlights = chat.get_highlight()
-        title = video_info.get('fulltitle', video_info['title'])
+        try:
+            video_id = self.youtube.get_videoid(url=url)
+            video_info = self.youtube.get_info(url=url)
+            chat = self.chat_factory(video_id)
+            highlights = chat.get_highlight()
+            title = video_info.get('fulltitle', video_info['title'])
+        except Exception as error:
+            raise HighlightCreationError(
+                f'Unable to create highlights: {error_detail(error)}',
+                original_error=error,
+            ) from error
         return HighlightResult(
             title=title,
             channel_name=video_info['channel'],
@@ -108,10 +133,16 @@ class YoutubeHighlightService:
         )
 
     def archive_graph(self, graph_image):
-        output_path = self.settings.GRAPH_SAVE_PATH
-        if not self.path_exists(output_path):
-            self.make_directory(output_path)
-        self.move(graph_image, output_path)
+        try:
+            output_path = self.settings.GRAPH_SAVE_PATH
+            if not self.path_exists(output_path):
+                self.make_directory(output_path)
+            self.move(graph_image, output_path)
+        except (OSError, shutil.Error) as error:
+            raise ArtifactStorageError(
+                f'Unable to archive highlight graph: {error}',
+                original_error=error,
+            ) from error
 
 
 @dataclass(frozen=True)
