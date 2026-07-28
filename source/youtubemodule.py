@@ -3,7 +3,6 @@
 # ---standard library---
 import datetime
 import time
-import urllib
 import os
 import shutil
 
@@ -20,6 +19,7 @@ from download_service import (
 )
 from external_error_adapter import youtube_scheduled_notice
 from setting import Settings
+from url_validation import extract_youtube_video_id
 
 
 class YoutubeModule():
@@ -198,9 +198,7 @@ class YoutubeModule():
         return ydl_ops
 
     def get_videoid(self, url):
-        parsed_url = urllib.parse.urlparse(url)
-        video_id = urllib.parse.parse_qs(parsed_url.query)['v']
-        return ''.join(video_id)
+        return extract_youtube_video_id(url)
 
 
 if __name__ == "__main__":
