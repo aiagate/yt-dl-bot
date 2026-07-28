@@ -1,5 +1,17 @@
 # yt-dl-bot
 
+## Development environment
+
+Install [uv](https://docs.astral.sh/uv/) and create the locked Python 3.12
+environment:
+
+```sh
+uv sync --locked
+```
+
+Add or update dependencies through `uv add` and `uv lock`. Commit both
+`pyproject.toml` and `uv.lock`.
+
 ## Configuration
 
 Copy the environment template and replace every placeholder and channel ID:
@@ -26,16 +38,12 @@ docker compose up -d
 MySQL data is stored in the named `mysql-data` volume. The bot waits for the
 database healthcheck before starting.
 
-## Known build prerequisite
-
-The legacy chat feature currently requires `dist/pytchat-0.5.6.tar.gz` during
-the image build. This dependency is intentionally retained until that feature
-is removed.
-
 ## Tests
 
 ```sh
-python -m unittest discover -s tests -v
-python -m compileall -q source tests
+uv run python -m unittest discover -s tests -v
+uv run python -m compileall -q source tests
+uv run pip-audit
+uv lock --check
 docker compose --env-file .env.example config --quiet
 ```
