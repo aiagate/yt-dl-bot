@@ -31,17 +31,22 @@ class TwitchStreamOffline(Exception):
 
 def split_highlight_text(highlights, max_length=1024):
     """Format highlight links into fields within Discord's size limit."""
+    if max_length < 2:
+        raise ValueError('max_length must be at least 2')
+
+    field_limit = max_length - 1
     fields = []
     current = ''
     for seconds, url in highlights:
         line = f'{datetime.timedelta(seconds=seconds)}\t{url}\n'
-        if current and len(current + line) >= max_length:
+        line = line[:field_limit]
+        if current and len(current + line) > field_limit:
             fields.append(current)
             current = ''
         current += line
     if current:
         fields.append(current)
-    return tuple(fields) or ('does not get highlight',)
+    return tuple(fields) or ('does not get highlight'[:field_limit],)
 
 
 class VideoDownloadService:
