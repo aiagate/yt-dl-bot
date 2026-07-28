@@ -42,8 +42,7 @@ class YoutubeCog(commands.Cog):
         self.bot.logger.info('Download Success!')
         await ctx.invoke(
             self.bot.get_command('send_video_output_log'),
-            info=result.info,
-            url=result.url,
+            result=result,
         )
         return
 

@@ -8,7 +8,7 @@ from pathlib import Path
 
 import yt_dlp
 
-from artifact_discovery import discover_download_artifacts
+from artifact_discovery import DownloadedArtifacts, discover_download_artifacts
 from download_service import (
     DownloadDependencies,
     DownloadRetryLimitExceeded,
@@ -31,6 +31,16 @@ class DownloadPolicy:
     live_from_start: bool
     use_cookie_file: bool
     cookie_path: Path = Path('cookie/cookies.txt')
+
+
+@dataclass(frozen=True)
+class DownloadOutcome:
+    """Stable adapter output that does not expose yt-dlp metadata."""
+
+    video_id: str
+    title: str
+    source_url: str
+    artifacts: DownloadedArtifacts
 
 
 def youtube_download_policy(retry_policy=None):
@@ -145,8 +155,22 @@ class DownloadEngine:
             )
 
         self._raise_if_cancelled(cancellation_token)
-        self._move_artifacts(artifacts)
-        return downloaded_info
+        stored_artifacts = self._move_artifacts(artifacts)
+        return DownloadOutcome(
+            video_id=str(downloaded_info.get('id') or ''),
+            title=str(
+                downloaded_info.get('fulltitle')
+                or downloaded_info.get('title')
+                or downloaded_info.get('id')
+                or url
+            ),
+            source_url=str(
+                downloaded_info.get('webpage_url')
+                or downloaded_info.get('original_url')
+                or url
+            ),
+            artifacts=stored_artifacts,
+        )
 
     def _load_download_info(self, url, info_loader, cancellation_token):
         retry_policy = self.policy.retry_policy
@@ -248,6 +272,17 @@ class DownloadEngine:
                     + '; '.join(str(error) for error in rollback_errors),
                 )
             raise
+        return DownloadedArtifacts(
+            video=move_plan[0][2],
+            metadata=tuple(
+                metadata_path / path.name
+                for path in artifacts.metadata
+            ),
+            thumbnails=tuple(
+                thumbnail_path / path.name
+                for path in artifacts.thumbnails
+            ),
+        )
 
     @staticmethod
     def _raise_if_cancelled(cancellation_token):

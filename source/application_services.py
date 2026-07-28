@@ -16,6 +16,7 @@ from application_errors import (
 )
 from artifact_discovery import ArtifactDiscoveryError
 from chatdatamodule import ChatDataModule
+from download_engine import DownloadOutcome
 from download_service import DownloadWaitError
 from external_error_adapter import error_detail, is_twitch_offline
 from youtubemodule import YoutubeModule
@@ -57,8 +58,27 @@ CHAT_PROCESSING_ERRORS = (
 
 @dataclass(frozen=True)
 class DownloadResult:
-    url: str
-    info: dict
+    video_id: str
+    title: str
+    source_url: str
+    video_file: Path
+    metadata_files: tuple[Path, ...]
+    thumbnail_files: tuple[Path, ...]
+
+    @classmethod
+    def from_outcome(cls, outcome):
+        if not isinstance(outcome, DownloadOutcome):
+            raise TypeError(
+                'download adapter must return DownloadOutcome',
+            )
+        return cls(
+            video_id=outcome.video_id,
+            title=outcome.title,
+            source_url=outcome.source_url,
+            video_file=outcome.artifacts.video,
+            metadata_files=outcome.artifacts.metadata,
+            thumbnail_files=outcome.artifacts.thumbnails,
+        )
 
 
 @dataclass(frozen=True)
@@ -110,9 +130,9 @@ class VideoDownloadService:
     def download(self, url, cancellation_token=None):
         try:
             if cancellation_token is None:
-                info = self.downloader.download_video(url=url)
+                outcome = self.downloader.download_video(url=url)
             else:
-                info = self.downloader.download_video_cancellable(
+                outcome = self.downloader.download_video_cancellable(
                     url=url,
                     cancellation_token=cancellation_token,
                 )
@@ -121,7 +141,7 @@ class VideoDownloadService:
                 f'Unable to download video: {error_detail(error)}',
                 original_error=error,
             ) from error
-        return DownloadResult(url=url, info=info)
+        return DownloadResult.from_outcome(outcome)
 
 
 class TwitchDownloadService(VideoDownloadService):

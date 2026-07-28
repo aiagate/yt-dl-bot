@@ -145,8 +145,15 @@ class SystemCog(commands.Cog):
 
 
     @commands.command(enabled=False)
-    async def send_video_output_log(self, ctx, info, url):
-        await self.bot.get_channel(self.settings.VIDEO_OUTPUT_CHANNEL).send('**Download Success : **' + '%(title)s' % info + '\n' + url)
+    async def send_video_output_log(self, ctx, result):
+        await self.bot.get_channel(
+            self.settings.VIDEO_OUTPUT_CHANNEL,
+        ).send(
+            '**Download Success : **'
+            + result.title
+            + '\n'
+            + result.source_url,
+        )
 
     @commands.command(enabled=False)
     async def send_highlight_output_log(self, ctx, file, embed):
