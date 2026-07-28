@@ -1,15 +1,12 @@
-import sys
 import unittest
 from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, Mock
 
 
-SOURCE_PATH = Path(__file__).resolve().parents[1] / 'source'
-sys.path.insert(0, str(SOURCE_PATH))
 
-from cogs.maincog import MainCog
-from message_router import MessageAction, MessageRoute, MessageRouter
+from yt_dl_bot.cogs.maincog import MainCog
+from yt_dl_bot.message_router import MessageAction, MessageRoute, MessageRouter
 
 
 class MessageRouterTest(unittest.TestCase):

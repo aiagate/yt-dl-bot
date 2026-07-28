@@ -7,9 +7,9 @@ import asyncio
 from discord.ext import commands
 
 # ---local library---
-from application_services import TwitchStreamOffline
-from cancellation import to_thread_cancellable
-from cogs.command_arguments import (
+from ..application_services import TwitchStreamOffline
+from ..cancellation import to_thread_cancellable
+from .command_arguments import (
     TwitchURL,
     handle_url_argument_error,
 )

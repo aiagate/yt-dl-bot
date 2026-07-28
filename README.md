@@ -12,6 +12,14 @@ uv sync --locked
 Add or update dependencies through `uv add` and `uv lock`. Commit both
 `pyproject.toml` and `uv.lock`.
 
+Run the installed package from any working directory:
+
+```sh
+uv run yt-dl-bot
+# Equivalent module entry point:
+uv run python -m yt_dl_bot.discord_bot_main
+```
+
 ## Configuration
 
 Copy the environment template and replace every placeholder and channel ID:
@@ -41,7 +49,7 @@ The Compose configuration runs the bot without an external database.
 
 ```sh
 uv run python -m unittest discover -s tests -v
-uv run python -m compileall -q source tests
+uv run python -m compileall -q src tests
 uv run pip-audit
 uv lock --check
 docker compose --env-file .env.example config --quiet

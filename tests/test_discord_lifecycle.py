@@ -1,22 +1,19 @@
-import sys
 import unittest
 from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import AsyncMock
 
 
-SOURCE_PATH = Path(__file__).resolve().parents[1] / 'source'
-sys.path.insert(0, str(SOURCE_PATH))
 
 INITIAL_EXTENSIONS = (
-    'cogs.maincog',
-    'cogs.systemcog',
-    'cogs.youtubecog',
-    'cogs.twitchcog',
+    'yt_dl_bot.cogs.maincog',
+    'yt_dl_bot.cogs.systemcog',
+    'yt_dl_bot.cogs.youtubecog',
+    'yt_dl_bot.cogs.twitchcog',
 )
 
-from cogs import maincog, systemcog, twitchcog, youtubecog
-from discord_bot_main import MyBot
+from yt_dl_bot.cogs import maincog, systemcog, twitchcog, youtubecog
+from yt_dl_bot.discord_bot_main import MyBot
 
 
 class BotLifecycleTest(unittest.IsolatedAsyncioTestCase):

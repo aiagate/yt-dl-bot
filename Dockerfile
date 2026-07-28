@@ -8,9 +8,8 @@ RUN apt-get update \
 
 WORKDIR /app
 COPY --from=uv /uv /uvx /bin/
-COPY pyproject.toml uv.lock ./
+COPY pyproject.toml uv.lock README.md ./
+COPY ./src/ ./src/
 RUN uv sync --locked --no-dev --no-cache
 
-COPY ./source/ ./
-
-CMD ["/app/.venv/bin/python", "discord_bot_main.py"]
+CMD ["/app/.venv/bin/python", "-m", "yt_dl_bot.discord_bot_main"]

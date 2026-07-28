@@ -10,8 +10,8 @@ import discord
 from discord.ext import commands
 
 # ---local library---
-from application_services import ApplicationServices
-from setting import Settings
+from .application_services import ApplicationServices
+from .setting import Settings
 
 
 LOG_FORMAT = (
@@ -19,7 +19,7 @@ LOG_FORMAT = (
     '%(name)-16s %(funcName)-24s | %(message)s'
 )
 LOG_DATE_FORMAT = '%Y-%m-%d %H:%M:%S'
-FILE_LOGGERS = ('discord', __name__, 'youtubemodule')
+FILE_LOGGERS = ('discord', __name__, 'yt_dl_bot.youtubemodule')
 
 
 def configure_logging(log_path):

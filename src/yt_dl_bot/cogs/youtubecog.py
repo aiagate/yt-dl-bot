@@ -8,8 +8,8 @@ from discord import Embed, File
 from discord.ext import commands
 
 # ---local library---
-from cancellation import to_thread_cancellable
-from cogs.command_arguments import (
+from ..cancellation import to_thread_cancellable
+from .command_arguments import (
     YoutubeURL,
     handle_url_argument_error,
 )

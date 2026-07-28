@@ -1,5 +1,4 @@
 import datetime
-import sys
 import unittest
 from pathlib import Path
 from unittest.mock import Mock, call
@@ -7,10 +6,8 @@ from unittest.mock import Mock, call
 import yt_dlp
 
 
-SOURCE_PATH = Path(__file__).resolve().parents[1] / 'source'
-sys.path.insert(0, str(SOURCE_PATH))
 
-from download_service import (
+from yt_dl_bot.download_service import (
     DownloadDependencies,
     DownloadRetryLimitExceeded,
     PermanentDownloadError,
@@ -18,10 +15,10 @@ from download_service import (
     RetryPolicy,
     RetryStatus,
 )
-from artifact_discovery import DownloadedArtifacts
-from download_engine import DownloadOutcome
-from youtubemodule import YoutubeModule
-from ytdlpmodule import YtdlpModule
+from yt_dl_bot.artifact_discovery import DownloadedArtifacts
+from yt_dl_bot.download_engine import DownloadOutcome
+from yt_dl_bot.youtubemodule import YoutubeModule
+from yt_dl_bot.ytdlpmodule import YtdlpModule
 
 
 class FakeYoutubeDL:

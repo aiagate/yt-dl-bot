@@ -1,5 +1,4 @@
 import logging
-import sys
 import tempfile
 import unittest
 from pathlib import Path
@@ -9,10 +8,8 @@ from unittest.mock import Mock, patch
 from pydantic import SecretStr
 
 
-SOURCE_PATH = Path(__file__).resolve().parents[1] / 'source'
-sys.path.insert(0, str(SOURCE_PATH))
 
-import discord_bot_main
+from yt_dl_bot import discord_bot_main
 
 
 class LoggingConfigurationTest(unittest.TestCase):

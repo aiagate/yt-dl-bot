@@ -7,7 +7,7 @@ from typing import Iterable, Iterator, Protocol, Sequence
 import matplotlib.pyplot as plt
 from pytchat import create
 
-from setting import Settings
+from .setting import Settings
 
 
 class ChatSource(Protocol):

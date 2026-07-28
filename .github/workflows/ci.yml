@@ -27,7 +27,7 @@ jobs:
         run: uv sync --locked
 
       - name: Check Python syntax
-        run: uv run python -m compileall -q source tests
+        run: uv run python -m compileall -q src tests
 
       - name: Check whitespace
         run: git diff --check origin/main...HEAD

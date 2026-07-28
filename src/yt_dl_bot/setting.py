@@ -5,12 +5,13 @@ from pydantic import SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 CURRENT_PATH = Path(__file__).resolve().parent
+PROJECT_PATH = CURRENT_PATH.parents[1]
 
 DEFAULT_INITIAL_EXTENSIONS = (
-    'cogs.maincog',
-    'cogs.systemcog',
-    'cogs.youtubecog',
-    'cogs.twitchcog',
+    'yt_dl_bot.cogs.maincog',
+    'yt_dl_bot.cogs.systemcog',
+    'yt_dl_bot.cogs.youtubecog',
+    'yt_dl_bot.cogs.twitchcog',
 )
 
 
@@ -33,7 +34,7 @@ class Settings(BaseSettings):
 
     model_config = SettingsConfigDict(
         env_file=(
-            f'{CURRENT_PATH.parent}/.env',
+            f'{PROJECT_PATH}/.env',
             f'{CURRENT_PATH}/.env',
             f'{CURRENT_PATH}/.env.local',
             f'{CURRENT_PATH}/.env.develop',

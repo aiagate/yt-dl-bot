@@ -1,14 +1,11 @@
 import os
-import sys
 import unittest
 from pathlib import Path
 from unittest.mock import patch
 
 
-SOURCE_PATH = Path(__file__).resolve().parents[1] / 'source'
-sys.path.insert(0, str(SOURCE_PATH))
 
-from setting import Settings
+from yt_dl_bot.setting import Settings
 
 
 class SettingsTest(unittest.TestCase):
