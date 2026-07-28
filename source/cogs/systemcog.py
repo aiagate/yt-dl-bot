@@ -11,6 +11,22 @@ from discord.ext import commands
 # ---local library---
 import property
 
+
+def _extension_names(arguments):
+    """Expand ``all`` and remove duplicate extension names."""
+    names = []
+    for argument in arguments:
+        extensions = (
+            property.INITIAL_EXTENSIONS
+            if argument == 'all'
+            else ('cogs.' + argument,)
+        )
+        for extension in extensions:
+            if extension not in names:
+                names.append(extension)
+    return names
+
+
 class SystemCog(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
@@ -21,6 +37,7 @@ class SystemCog(commands.Cog):
             await ctx.send('Error: missing option')
 
     @botsystem.command(name='close')
+    @commands.is_owner()
     async def botsystem_close(self, ctx):
         await self.bot.get_channel(property.LOG_CHANNEL).send('Bot System Will Be Shutdown...')
         await asyncio.sleep(3)
@@ -32,80 +49,57 @@ class SystemCog(commands.Cog):
             await ctx.send('Error: missing option')
 
     @cogs.group(name='reload')
+    @commands.is_owner()
     async def cogs_reload(self, ctx, *args, **kwargs):
         if len(args) == 0:
             await ctx.send('Error: missing cog name opetand')
             return
 
-        for cog in args:
-            if cog == 'all':
-                for cog in property.INITIAL_EXTENSIONS:
-                    await self.bot.reload_extension(cog)
-                    await ctx.send('Success: ' + cog + ' is Reloaded.')
-            else:
-                await self.bot.reload_extension('cogs.' + cog)
-                await ctx.send('Success: cog.' + cog + ' is Reloaded.')
+        for extension in _extension_names(args):
+            await self.bot.reload_extension(extension)
+            await ctx.send('Success: ' + extension + ' is Reloaded.')
 
     @cogs_reload.error
     async def cogs_reload_error(self, ctx, error):
         await ctx.send('Error: ' + str(error))
 
     @cogs.group(name='load')
+    @commands.is_owner()
     async def cogs_load(self, ctx, *args, **kwargs):
         if len(args) == 0:
             await ctx.send('Error: missing cog name opetand')
             return
 
-        for cog in args:
-            if cog == 'all':
-                for cog in property.INITIAL_EXTENSIONS:
-                    self.bot.load_extension(cog)
-                    await ctx.send('Success: ' + cog + ' is Loaded.')
-            else:
-                self.bot.load_extension('cogs.' + cog)
-                await ctx.send('Success: cog.' + cog + ' is Loaded.')
+        for extension in _extension_names(args):
+            await self.bot.load_extension(extension)
+            await ctx.send('Success: ' + extension + ' is Loaded.')
     
     @cogs_load.error
     async def cogs_load_error(self, ctx, error):
         await ctx.send('Error: ' + str(error))
 
-    @cogs_load.command(name='all')
-    async def cogs_load_all(self, ctx):
-        pass
-    
-    @cogs_load_all.error
-    async def cogs_load_all_error(self, ctx, error):
-        await ctx.send('Error: ' + str(error))
-
     @cogs.group(name='unload')
+    @commands.is_owner()
     async def cogs_unload(self, ctx, *args, **kwargs):
-        force_option = False
-
         if len(args) == 0:
             await ctx.send('Error: missing cog name opetand')
             return
 
-        for cog in args:
-            if cog == '-f':
-                force_option = True
-        
-        for cog in args:
-            if cog == 'all':
-                if force_option == False:
-                        await ctx.send("Error: can't unload. (force unload : -f)")
-                        return
-                for cog in property.INITIAL_EXTENSIONS:
-                    self.bot.unload_extension(cog)
-                    await ctx.send('Success: ' + cog + ' is Unloaded.')
+        force_option = '-f' in args
+        targets = tuple(argument for argument in args if argument != '-f')
+        if not targets:
+            await ctx.send('Error: missing cog name opetand')
+            return
+        if 'all' in targets and not force_option:
+            await ctx.send("Error: can't unload. (force unload : -f)")
+            return
+        if 'systemcog' in targets and not force_option:
+            await ctx.send("Error: systemcog can't unload. (force unload : -f)")
+            return
 
-            if cog == 'systemcog' and force_option == True:
-                pass
-            elif cog == 'systemcog' and force_option == False:
-                await ctx.send("Error: systemcog can't unload. (force unload : -f)")
-                return
-
-            self.bot.unload_extension('cogs.' + cog)
-            await ctx.send('Success: cog.' + cog + ' is Unloaded.')
+        for extension in _extension_names(targets):
+            await self.bot.unload_extension(extension)
+            await ctx.send('Success: ' + extension + ' is Unloaded.')
     
     @cogs_unload.error
     async def cogs_unload_error(self, ctx, error):
