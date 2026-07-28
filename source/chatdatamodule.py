@@ -2,7 +2,7 @@ import datetime
 from collections import deque
 from logging import getLogger
 from pathlib import Path
-from typing import Iterable, Protocol, Sequence
+from typing import Iterable, Iterator, Protocol, Sequence
 
 import matplotlib.pyplot as plt
 from pytchat import create
@@ -20,17 +20,14 @@ class ChatSource(Protocol):
 class PytchatSource:
     """Read replay chat through pytchat and release it after collection."""
 
-    def collect_elapsed_times(self, video_id: str) -> list[str]:
-        elapsed_times = []
+    def collect_elapsed_times(self, video_id: str) -> Iterator[str]:
         chat = create(video_id=video_id, force_replay=True)
         try:
             while chat.is_alive():
-                elapsed_times.extend(
-                    comment.elapsedTime for comment in chat.get().items
-                )
+                for comment in chat.get().items:
+                    yield comment.elapsedTime
         finally:
             chat.terminate()
-        return elapsed_times
 
 
 class HighlightAnalyzer:

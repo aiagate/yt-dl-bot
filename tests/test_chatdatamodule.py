@@ -60,10 +60,32 @@ class PytchatSourceTest(unittest.TestCase):
             SimpleNamespace(elapsedTime='0:02'),
         ]
 
-        elapsed_times = PytchatSource().collect_elapsed_times('video-id')
+        elapsed_times = list(
+            PytchatSource().collect_elapsed_times('video-id')
+        )
 
         create.assert_called_once_with(video_id='video-id', force_replay=True)
         self.assertEqual(elapsed_times, ['0:01', '0:02'])
+        chat.terminate.assert_called_once_with()
+
+    @patch('chatdatamodule.create')
+    def test_large_collection_is_lazy_and_not_buffered(self, create):
+        chat = create.return_value
+        chat.is_alive.return_value = True
+        chat.get.return_value.items = (
+            SimpleNamespace(elapsedTime=f'0:{second:02}')
+            for second in range(1_000_000)
+        )
+
+        elapsed_times = PytchatSource().collect_elapsed_times('video-id')
+
+        create.assert_not_called()
+        self.assertNotIsInstance(elapsed_times, list)
+        self.assertEqual(next(elapsed_times), '0:00')
+        create.assert_called_once_with(video_id='video-id', force_replay=True)
+        chat.get.assert_called_once_with()
+
+        elapsed_times.close()
         chat.terminate.assert_called_once_with()
 
 
