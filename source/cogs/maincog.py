@@ -4,45 +4,45 @@
 from discord.ext import commands
 
 # ---local library---
-from url_validation import identify_service
+from message_router import MessageAction, MessageRouter
 
 
 class MainCog(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
         self.settings = bot.settings
-
-    @staticmethod
-    def is_url(text):
-        return identify_service(text) is not None
-
-    @staticmethod
-    def get_service(url):
-        return identify_service(url)
+        self.router = MessageRouter(
+            command_prefix=bot.command_prefix,
+            download_channel=self.settings.DOWNLOAD_CHANNEL,
+            highlight_channel=self.settings.HIGHLIGHT_CHANNEL,
+        )
 
     @commands.Cog.listener(name='on_message')
     async def on_message(self, message):
-        # Bot同士による会話を制限
-        if message.author.bot:
-            return
-        # コマンドの場合処理をしない
-        elif '!' in message.content:
-            return
-        elif self.is_url(message.content):
-            service = self.get_service(message.content)
-            if service == 'youtube':
-                if message.channel.id == self.settings.HIGHLIGHT_CHANNEL:
-                    message.content = '!youtube highlight ' + message.content
-                elif message.channel.id == self.settings.DOWNLOAD_CHANNEL:
-                    message.content = '!youtube download ' + message.content
-            elif service == 'twitch':
-                if message.channel.id == self.settings.DOWNLOAD_CHANNEL:
-                    message.content = '!twitch download ' + message.content
-        else:
+        route = self.router.route(
+            author_is_bot=message.author.bot,
+            content=message.content,
+            channel_id=message.channel.id,
+        )
+        if route.action in {MessageAction.IGNORE, MessageAction.COMMAND}:
+            # Bot.on_message owns normal command processing. Calling
+            # process_commands from this additional listener would run it twice.
             return
 
-        self.bot.logger.info(message.content)
-        await self.bot.process_commands(message)
+        command = self.bot.get_command(route.action.command_name)
+        if command is None:
+            self.bot.logger.error(
+                'Automatic route command is not loaded: %s',
+                route.action.command_name,
+            )
+            return
+
+        self.bot.logger.info(
+            'Automatic route: %s',
+            route.action.command_name,
+        )
+        ctx = await self.bot.get_context(message)
+        await ctx.invoke(command, route.url)
         return
 
 
