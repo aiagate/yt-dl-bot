@@ -10,15 +10,21 @@ import discord
 from discord.ext import commands
 
 # ---local library---
+from application_services import ApplicationServices
 from setting import Settings
 
 
 class MyBot(commands.Bot):
 
-    def __init__(self, command_prefix, settings):
+    def __init__(self, command_prefix, settings, services=None):
         # loggerを作成
         self.logger = getLogger(__name__)
         self.settings = settings
+        self.services = (
+            services
+            if services is not None
+            else ApplicationServices.from_settings(settings)
+        )
 
         # スーパークラスのコンストラクタに値を渡して実行。
         super().__init__(intents=discord.Intents.all(),command_prefix=command_prefix)
@@ -61,7 +67,12 @@ def main(settings=None):
     logger = getLogger(__name__)
     logger.addHandler(fh)
 
-    bot = MyBot(command_prefix='!', settings=settings)
+    services = ApplicationServices.from_settings(settings)
+    bot = MyBot(
+        command_prefix='!',
+        settings=settings,
+        services=services,
+    )
     bot.run(settings.DISCORD_KEY.get_secret_value())
     logger2 = getLogger('youtubemodule')
     logger2.addHandler(fh)

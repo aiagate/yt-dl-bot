@@ -24,7 +24,11 @@ class BotLifecycleTest(unittest.IsolatedAsyncioTestCase):
         settings = SimpleNamespace(
             INITIAL_EXTENSIONS=INITIAL_EXTENSIONS,
         )
-        bot = MyBot(command_prefix='!', settings=settings)
+        bot = MyBot(
+            command_prefix='!',
+            settings=settings,
+            services=SimpleNamespace(),
+        )
         bot.load_extension = AsyncMock()
         self.addAsyncCleanup(bot.close)
 
@@ -39,6 +43,7 @@ class BotLifecycleTest(unittest.IsolatedAsyncioTestCase):
         bot = MyBot(
             command_prefix='!',
             settings=SimpleNamespace(INITIAL_EXTENSIONS=()),
+            services=SimpleNamespace(),
         )
         bot.load_extension = AsyncMock()
         bot._connection.user = unittest.mock.Mock(name='bot', id=1)

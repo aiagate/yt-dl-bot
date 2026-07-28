@@ -3,6 +3,7 @@ import os
 import sys
 import unittest
 from pathlib import Path
+from types import SimpleNamespace
 from unittest.mock import patch
 
 
@@ -33,10 +34,16 @@ def settings_for(name):
 class ApplicationSettingsTest(unittest.IsolatedAsyncioTestCase):
     async def test_bot_keeps_the_composition_root_settings_instance(self):
         settings = settings_for('first')
-        bot = MyBot(command_prefix='!', settings=settings)
+        services = SimpleNamespace(name='services')
+        bot = MyBot(
+            command_prefix='!',
+            settings=settings,
+            services=services,
+        )
         self.addAsyncCleanup(bot.close)
 
         self.assertIs(bot.settings, settings)
+        self.assertIs(bot.services, services)
 
     def test_distinct_settings_can_be_used_in_parallel(self):
         first = settings_for('first')
