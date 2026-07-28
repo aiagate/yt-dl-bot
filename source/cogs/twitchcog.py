@@ -2,7 +2,6 @@
 
 # ---standard library---
 import importlib
-import requests
 from functools import partial
 
 # ---third party library---
@@ -11,6 +10,7 @@ from discord.ext import commands
 # ---local library---
 import ytdlpmodule
 import property
+from url_validation import validate_service_url
 
 
 class TwitchCog(commands.Cog):
@@ -22,11 +22,7 @@ class TwitchCog(commands.Cog):
 
     @staticmethod
     def parse_url(url):
-        try:
-            url = requests.get(url).url.split('&')[0]
-            return url
-        except Exception as e:
-            raise e
+        return validate_service_url(url, 'twitch')
 
     @commands.group(name='twitch')
     async def twitch_cog(self, ctx):

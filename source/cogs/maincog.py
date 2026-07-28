@@ -1,14 +1,11 @@
 #! ./.venv/bin/python
 
-# ---standard library---
-import requests
-import urllib
-
 # ---third party library---
 from discord.ext import commands
 
 # ---local library---
 import property
+from url_validation import identify_service
 
 
 class MainCog(commands.Cog):
@@ -17,20 +14,11 @@ class MainCog(commands.Cog):
 
     @staticmethod
     def is_url(text):
-        try:
-            url = requests.get(text)
-            return True
-        except Exception as e:
-            return False
+        return identify_service(text) is not None
 
     @staticmethod
-    def get_domain(self, url):
-        try:
-            url = requests.get(url).url.split('&')[0]
-            parsed_url = urllib.parse.urlparse(url)
-            return parsed_url.netloc
-        except Exception as e:
-            raise e
+    def get_service(url):
+        return identify_service(url)
 
     @commands.Cog.listener(name='on_message')
     async def on_message(self, message):
@@ -41,12 +29,13 @@ class MainCog(commands.Cog):
         elif '!' in message.content:
             return
         elif self.is_url(message.content):
-            if self.get_domain(self, message.content) == 'www.youtube.com':
+            service = self.get_service(message.content)
+            if service == 'youtube':
                 if message.channel.id == property.HIGHLIGHT_CHANNEL:
                     message.content = '!youtube highlight ' + message.content
                 elif message.channel.id == property.DOWNLOAD_CHANNEL:
                     message.content = '!youtube download ' + message.content
-            elif self.get_domain(self, message.content) == 'www.twitch.tv':
+            elif service == 'twitch':
                 if message.channel.id == property.DOWNLOAD_CHANNEL:
                     message.content = '!twitch download ' + message.content
         else:
