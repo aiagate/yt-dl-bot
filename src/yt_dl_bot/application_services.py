@@ -88,6 +88,7 @@ class HighlightYouTubeAdapter(Protocol):
 
 class ApplicationSettings(Protocol):
     GRAPH_SAVE_PATH: Path
+    SAVE_PATH: Path
     TMP_PATH: Path
 
 
