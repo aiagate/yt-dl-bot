@@ -1,10 +1,11 @@
 """External side-effect boundary for download services."""
 
+from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
 from pathlib import Path
-from typing import Callable, Protocol
+from typing import Protocol
 
 from .external_error_adapter import youtube_scheduled_delay
 

@@ -12,7 +12,7 @@ class FakeYoutubeDL:
     def __init__(self, prepared_filename):
         self.prepared_filename = prepared_filename
 
-    def prepare_filename(self, info):
+    def prepare_filename(self, _info):
         return self.prepared_filename
 
 

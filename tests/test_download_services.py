@@ -63,7 +63,7 @@ class DownloadModuleTestCase:
             Path(f"{stem}.webp"),
         }
         self.mkdir = Mock(
-            side_effect=lambda path, **kwargs: self.existing_paths.add(path),
+            side_effect=lambda path, **_kwargs: self.existing_paths.add(path),
         )
         self.move = Mock()
         self.sleep = Mock()
