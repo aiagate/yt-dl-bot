@@ -13,6 +13,7 @@ from yt_dl_bot.application_results import (
 )
 from yt_dl_bot.cogs.twitchcog import TwitchCog
 from yt_dl_bot.cogs.youtubecog import YouTubeCog
+from yt_dl_bot.highlight import Highlight
 from yt_dl_bot.video_download_service import (
     TwitchStreamOffline,
 )
@@ -182,22 +183,27 @@ class CogDelegationTest(unittest.IsolatedAsyncioTestCase):
             title="Title",
             channel_name="Channel",
             thumbnail_url="https://example.test/thumb.jpg",
-            graph_image="/tmp/graph.png",
-            highlight_fields=("field one", "field two"),
+            graph_image=Path("/tmp/graph.png"),
+            highlights=(
+                Highlight(1, "field-one"),
+                Highlight(2, "field-two"),
+            ),
         )
         bot.services.youtube_highlight.create.return_value = result
         ctx = Mock()
         ctx.reply = AsyncMock()
         ctx.invoke = AsyncMock()
         cog = YouTubeCog(bot)
-        embed = Mock()
 
         with (
             patch(
                 "yt_dl_bot.cogs.youtubecog.File",
                 return_value="discord-file",
             ) as file_factory,
-            patch("yt_dl_bot.cogs.youtubecog.Embed", return_value=embed),
+            patch(
+                "yt_dl_bot.cogs.youtubecog.create_highlight_embed",
+                return_value="discord-embed",
+            ) as create_embed,
             patch("asyncio.to_thread", self.to_thread_mock()) as to_thread,
         ):
             await YouTubeCog.get_highlight.callback(
@@ -210,19 +216,13 @@ class CogDelegationTest(unittest.IsolatedAsyncioTestCase):
             "https://youtu.be/video",
         )
         bot.services.youtube_highlight.archive_graph.assert_called_once_with(
-            "/tmp/graph.png",
+            Path("/tmp/graph.png"),
         )
-        self.assertEqual(
-            embed.add_field.call_args_list,
-            [
-                unittest.mock.call(name="highlight", value="field one"),
-                unittest.mock.call(name="highlight", value="field two"),
-            ],
-        )
+        create_embed.assert_called_once_with(result)
         ctx.invoke.assert_awaited_once_with(
             "send_highlight_output_log",
             "discord-file",
-            embed,
+            "discord-embed",
         )
         self.assertEqual(to_thread.await_count, 3)
         self.assertIs(

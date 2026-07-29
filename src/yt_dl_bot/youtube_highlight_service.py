@@ -9,7 +9,7 @@ import yt_dlp
 from pytchat import exceptions as pytchat_exceptions
 
 from .application_errors import ArtifactStorageError, HighlightCreationError
-from .application_results import HighlightResult, split_highlight_text
+from .application_results import HighlightResult
 from .chat_highlights import ChatHighlightPipeline
 from .download_service import MakeDirectory
 from .external_error_adapter import error_detail
@@ -131,7 +131,7 @@ class YouTubeHighlightService:
             channel_name=channel_name,
             thumbnail_url=thumbnail_url,
             graph_image=Path(chat.image_path),
-            highlight_fields=split_highlight_text(highlights),
+            highlights=tuple(highlights),
         )
 
     def archive_graph(self, graph_image: Path) -> None:

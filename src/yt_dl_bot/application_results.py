@@ -1,7 +1,5 @@
-"""Application result models and presentation-ready highlight formatting."""
+"""Application result models shared by use cases and delivery adapters."""
 
-import datetime
-from collections.abc import Iterable
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -40,27 +38,4 @@ class HighlightResult:
     channel_name: str
     thumbnail_url: str
     graph_image: Path
-    highlight_fields: tuple[str, ...]
-
-
-def split_highlight_text(
-    highlights: Iterable[Highlight],
-    max_length: int = 1024,
-) -> tuple[str, ...]:
-    """Format highlight links into fields within Discord's size limit."""
-    if max_length < 2:
-        raise ValueError("max_length must be at least 2")
-
-    field_limit = max_length - 1
-    fields: list[str] = []
-    current = ""
-    for highlight in highlights:
-        line = f"{datetime.timedelta(seconds=highlight.seconds)}\t{highlight.url}\n"
-        line = line[:field_limit]
-        if current and len(current + line) > field_limit:
-            fields.append(current)
-            current = ""
-        current += line
-    if current:
-        fields.append(current)
-    return tuple(fields) or ("does not get highlight"[:field_limit],)
+    highlights: tuple[Highlight, ...]

@@ -70,7 +70,9 @@ The main implementation areas are:
 
 - `cogs/`: Discord commands, replies, embeds, and automatic message routing.
 - `application_container.py`: composition root that wires adapters into services.
-- `application_results.py`: use-case result objects and highlight field formatting.
+- `application_results.py`: Discord-independent use-case result objects.
+- `cogs/highlight_presenter.py`: Discord embed and field-limit formatting for
+  structured highlight results.
 - `video_download_service.py`: video check and download use cases.
 - `youtube_highlight_service.py`: YouTube highlight creation and graph archival.
 - `download_engine.py`: yt-dlp options, retry behavior, and download orchestration.
