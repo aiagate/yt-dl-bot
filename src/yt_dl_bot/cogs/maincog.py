@@ -1,5 +1,3 @@
-#! ./.venv/bin/python
-
 # ---third party library---
 from discord.ext import commands
 
@@ -43,7 +41,6 @@ class MainCog(commands.Cog):
         )
         ctx = await self.bot.get_context(message)
         await ctx.invoke(command, route.url)
-        return
 
 
 async def setup(bot):

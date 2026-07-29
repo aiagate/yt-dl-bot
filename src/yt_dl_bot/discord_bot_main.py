@@ -1,5 +1,3 @@
-#! .venv/bin/python
-
 # ---standard library---
 import logging
 from logging import INFO, getLogger
@@ -81,7 +79,7 @@ class MyBot(commands.Bot):
         super().__init__(intents=discord.Intents.all(), command_prefix=command_prefix)
 
     async def setup_hook(self):
-        # Cogをpropartyのリストからロード
+        # 設定されたリストからCogをロード
         for cog in self.settings.INITIAL_EXTENSIONS:
             try:
                 await self.load_extension(cog)
