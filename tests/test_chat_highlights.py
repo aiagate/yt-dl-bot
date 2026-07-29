@@ -1,5 +1,6 @@
 import datetime
 import unittest
+from dataclasses import FrozenInstanceError
 from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import Mock, patch
@@ -10,6 +11,7 @@ from yt_dl_bot.chat_highlights import (
     MatplotlibGraphRenderer,
     PytchatSource,
 )
+from yt_dl_bot.highlight import Highlight
 
 
 class HighlightAnalyzerTest(unittest.TestCase):
@@ -41,6 +43,14 @@ class HighlightAnalyzerTest(unittest.TestCase):
     def test_peak_times_returns_empty_for_no_activity(self):
         self.assertEqual(self.analyzer.peak_times([]), [])
         self.assertEqual(self.analyzer.peak_times([0, 0]), [])
+
+
+class HighlightTest(unittest.TestCase):
+    def test_is_an_immutable_typed_value(self):
+        highlight = Highlight(seconds=30, url="https://youtu.be/video?t=30s")
+
+        with self.assertRaises(FrozenInstanceError):
+            highlight.seconds = 60
 
 
 class PytchatSourceTest(unittest.TestCase):
@@ -108,7 +118,10 @@ class ChatHighlightPipelineTest(unittest.TestCase):
             image_path,
             Path("downloads/cache/scoregraph_2026-07-28-1234_video-id.png"),
         )
-        self.assertEqual(highlights, [[0, "https://youtu.be/video-id?t=0s"]])
+        self.assertEqual(
+            highlights,
+            (Highlight(seconds=0, url="https://youtu.be/video-id?t=0s"),),
+        )
 
     def test_analysis_helpers_delegate_to_analyzer(self):
         module = ChatHighlightPipeline("video-id", settings=self.settings)

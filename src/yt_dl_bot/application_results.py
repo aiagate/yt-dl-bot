@@ -1,12 +1,12 @@
 """Application result models and presentation-ready highlight formatting."""
 
 import datetime
-from collections.abc import Iterable, Sequence
+from collections.abc import Iterable
 from dataclasses import dataclass
 from pathlib import Path
-from typing import cast
 
 from .download_engine import DownloadOutcome
+from .highlight import Highlight
 
 
 @dataclass(frozen=True)
@@ -44,7 +44,7 @@ class HighlightResult:
 
 
 def split_highlight_text(
-    highlights: Iterable[Sequence[int | str]],
+    highlights: Iterable[Highlight],
     max_length: int = 1024,
 ) -> tuple[str, ...]:
     """Format highlight links into fields within Discord's size limit."""
@@ -54,11 +54,8 @@ def split_highlight_text(
     field_limit = max_length - 1
     fields: list[str] = []
     current = ""
-    for item in highlights:
-        seconds, url = item
-        seconds = cast(int, seconds)
-        url = cast(str, url)
-        line = f"{datetime.timedelta(seconds=seconds)}\t{url}\n"
+    for highlight in highlights:
+        line = f"{datetime.timedelta(seconds=highlight.seconds)}\t{highlight.url}\n"
         line = line[:field_limit]
         if current and len(current + line) > field_limit:
             fields.append(current)
