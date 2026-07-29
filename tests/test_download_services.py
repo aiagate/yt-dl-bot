@@ -271,6 +271,26 @@ class YoutubeModuleBoundaryTest(DownloadModuleTestCase, unittest.TestCase):
         self.assertEqual(raised.exception.waited_seconds, 0)
         self.sleep.assert_not_called()
 
+    def test_retry_can_use_the_entire_wait_budget(self):
+        error = yt_dlp.utils.DownloadError(
+            "This live event will begin in 1 minutes.",
+        )
+        self.module = YoutubeModule(
+            self.dependencies,
+            retry_policy=RetryPolicy(
+                max_attempts=2,
+                max_wait_seconds=30,
+            ),
+        )
+        self.module.get_info = Mock(
+            side_effect=[error, self.download_info],
+        )
+
+        self.module.download_video("https://youtu.be/video")
+
+        self.sleep.assert_called_once_with(30.0)
+        self.assertEqual(self.module.get_info.call_count, 2)
+
     def test_live_timer_retains_retry_delay_compatibility(self):
         error = yt_dlp.utils.DownloadError(
             "Premieres in 7 hours.",
