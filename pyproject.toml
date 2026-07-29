@@ -43,6 +43,7 @@ select = ["ASYNC", "ARG", "B", "E4", "E7", "E9", "F", "I", "RUF", "UP"]
 "src/yt_dl_bot/cogs/systemcog.py" = ["ARG002"]
 # Full-width punctuation is intentional in sanitized filenames and their fixtures.
 "src/yt_dl_bot/download_engine.py" = ["RUF001"]
+"tests/download_adapter_test_support.py" = ["RUF001"]
 "tests/test_download_engine.py" = ["RUF001"]
 "tests/test_youtube_downloader.py" = ["RUF001"]
 "tests/test_yt_dlp_downloader.py" = ["RUF001"]
