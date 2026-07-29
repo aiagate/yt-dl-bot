@@ -64,7 +64,6 @@ highlight creation follows a separate
 The main implementation areas are:
 
 - `cogs/`: Discord commands, replies, embeds, and automatic message routing.
-- `application_services.py`: compatibility facade for the established application API.
 - `application_container.py`: composition root that wires adapters into services.
 - `application_results.py`: use-case result objects and highlight field formatting.
 - `video_download_service.py`: video check and download use cases.
@@ -74,13 +73,6 @@ The main implementation areas are:
 - `chat_highlights.py`: replay-chat collection, peak detection, and graph
   rendering.
 - `setting.py`: environment-backed runtime settings and the initial Cog list.
-
-The former `YoutubeModule`, `YtdlpModule`, `ChatDataModule`, `MyBot`,
-`YoutubeCog`, and `YoutubeURL` names remain available as compatibility aliases.
-Likewise, the old `data_check`, `ops`, `get_videoid`, `get_peaktime`, and
-`plot_peak` methods delegate to their responsibility-revealing replacements.
-New integrations should use `check_availability`, `build_options`,
-`get_video_id`, `get_peak_times`, and `render_score_graph`.
 
 ### Commands and automatic routing
 

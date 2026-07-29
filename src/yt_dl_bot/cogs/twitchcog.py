@@ -4,9 +4,10 @@ import asyncio
 # ---third party library---
 from discord.ext import commands
 
-# ---local library---
-from ..application_services import TwitchStreamOffline
 from ..cancellation import to_thread_cancellable
+
+# ---local library---
+from ..video_download_service import TwitchStreamOffline
 from .command_arguments import (
     TwitchURL,
     handle_url_argument_error,

@@ -34,13 +34,9 @@ class MakeDirectory(Protocol):
     ) -> None: ...
 
 
-# Compatibility alias for the previous public spelling.
-YoutubeDLFactory = YouTubeDLFactory
-
-
 @dataclass(frozen=True)
 class DownloadDependencies:
-    """Injectable operations used by the legacy download modules."""
+    """Injectable operations used by download adapters."""
 
     ydl_factory: YouTubeDLFactory
     now: Callable[[], datetime]

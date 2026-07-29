@@ -146,10 +146,6 @@ class DownloadEngine:
             raise
         return f"Video title : {info['title']}\nDownload start..."
 
-    def data_check(self, url: str, info_loader: InfoLoader | None = None) -> str:
-        """Compatibility wrapper for the former method name."""
-        return self.check_availability(url, info_loader=info_loader)
-
     def download_video(
         self,
         url: str,
@@ -251,10 +247,6 @@ class DownloadEngine:
                 else:
                     self.dependencies.sleep(wait_seconds)
                 waited_seconds += wait_seconds
-
-    def _move_artifacts(self, artifacts: DownloadedArtifacts) -> DownloadedArtifacts:
-        """Compatibility wrapper for callers of the former helper."""
-        return self.artifact_store.store(artifacts)
 
     @staticmethod
     def _raise_if_cancelled(cancellation_token: Cancellation | None) -> None:

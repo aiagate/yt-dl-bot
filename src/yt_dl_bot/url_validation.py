@@ -113,9 +113,5 @@ def parse_youtube_video_url(value: str) -> YouTubeVideoReference:
     )
 
 
-# Compatibility alias for the previous public spelling.
-YoutubeVideoReference = YouTubeVideoReference
-
-
 def extract_youtube_video_id(value: str) -> str:
     return parse_youtube_video_url(value).video_id

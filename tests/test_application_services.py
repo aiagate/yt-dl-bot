@@ -13,20 +13,24 @@ from yt_dl_bot.application_errors import (
     VideoCheckError,
     VideoDownloadError,
 )
-from yt_dl_bot.application_services import (
+from yt_dl_bot.application_results import (
     DownloadResult,
     HighlightResult,
-    TwitchDownloadService,
-    TwitchStreamOffline,
-    VideoDownloadService,
-    YoutubeHighlightService,
     split_highlight_text,
 )
 from yt_dl_bot.artifact_discovery import DownloadedArtifacts
 from yt_dl_bot.cancellation import CancellationToken
 from yt_dl_bot.cogs.twitchcog import TwitchCog
-from yt_dl_bot.cogs.youtubecog import YoutubeCog
+from yt_dl_bot.cogs.youtubecog import YouTubeCog
 from yt_dl_bot.download_engine import DownloadOutcome
+from yt_dl_bot.video_download_service import (
+    TwitchDownloadService,
+    TwitchStreamOffline,
+    VideoDownloadService,
+)
+from yt_dl_bot.youtube_highlight_service import (
+    YouTubeHighlightService,
+)
 
 
 class VideoDownloadServiceTest(unittest.TestCase):
@@ -206,7 +210,7 @@ class HighlightServiceTest(unittest.TestCase):
         chat = Mock()
         chat.image_path = "/tmp/graph.png"
         chat.get_highlight.return_value = []
-        return YoutubeHighlightService(
+        return YouTubeHighlightService(
             settings=SimpleNamespace(GRAPH_SAVE_PATH="/graphs/"),
             youtube=youtube,
             chat_factory=Mock(return_value=chat),
@@ -227,7 +231,7 @@ class HighlightServiceTest(unittest.TestCase):
             [30, "https://youtu.be/video-id?t=30s"],
             [90, "https://youtu.be/video-id?t=90s"],
         ]
-        service = YoutubeHighlightService(
+        service = YouTubeHighlightService(
             settings=SimpleNamespace(GRAPH_SAVE_PATH="/graphs/"),
             youtube=youtube,
             chat_factory=Mock(return_value=chat),
@@ -249,7 +253,7 @@ class HighlightServiceTest(unittest.TestCase):
     def test_archive_graph_uses_injected_file_operations(self):
         mkdir = Mock()
         move = Mock()
-        service = YoutubeHighlightService(
+        service = YouTubeHighlightService(
             settings=SimpleNamespace(GRAPH_SAVE_PATH="/graphs/"),
             youtube=Mock(),
             path_exists=Mock(return_value=False),
@@ -273,7 +277,7 @@ class HighlightServiceTest(unittest.TestCase):
         youtube = Mock()
         failure = yt_dlp.utils.DownloadError("yt-dlp failed")
         youtube.get_video_id.side_effect = failure
-        service = YoutubeHighlightService(
+        service = YouTubeHighlightService(
             settings=SimpleNamespace(GRAPH_SAVE_PATH="/graphs/"),
             youtube=youtube,
         )
@@ -360,7 +364,7 @@ class HighlightServiceTest(unittest.TestCase):
         youtube = Mock()
         failure = AttributeError("broken highlight implementation")
         youtube.get_video_id.side_effect = failure
-        service = YoutubeHighlightService(
+        service = YouTubeHighlightService(
             settings=SimpleNamespace(GRAPH_SAVE_PATH="/graphs/"),
             youtube=youtube,
         )
@@ -372,7 +376,7 @@ class HighlightServiceTest(unittest.TestCase):
 
     def test_filesystem_failure_is_typed(self):
         failure = OSError("disk full")
-        service = YoutubeHighlightService(
+        service = YouTubeHighlightService(
             settings=SimpleNamespace(GRAPH_SAVE_PATH="/graphs/"),
             youtube=Mock(),
             path_exists=Mock(return_value=True),
@@ -458,11 +462,11 @@ class CogDelegationTest(unittest.IsolatedAsyncioTestCase):
         ctx = Mock()
         ctx.reply = AsyncMock()
         ctx.invoke = AsyncMock()
-        cog = YoutubeCog(bot)
+        cog = YouTubeCog(bot)
 
         to_thread = self.to_thread_mock()
         with patch("asyncio.to_thread", to_thread):
-            await YoutubeCog.download_video.callback(
+            await YouTubeCog.download_video.callback(
                 cog,
                 ctx,
                 "https://youtu.be/video",
@@ -593,7 +597,7 @@ class CogDelegationTest(unittest.IsolatedAsyncioTestCase):
         ctx = Mock()
         ctx.reply = AsyncMock()
         ctx.invoke = AsyncMock()
-        cog = YoutubeCog(bot)
+        cog = YouTubeCog(bot)
         embed = Mock()
 
         with (
@@ -604,7 +608,7 @@ class CogDelegationTest(unittest.IsolatedAsyncioTestCase):
             patch("yt_dl_bot.cogs.youtubecog.Embed", return_value=embed),
             patch("asyncio.to_thread", self.to_thread_mock()) as to_thread,
         ):
-            await YoutubeCog.get_highlight.callback(
+            await YouTubeCog.get_highlight.callback(
                 cog,
                 ctx,
                 "https://youtu.be/video",
@@ -644,14 +648,14 @@ class CogDelegationTest(unittest.IsolatedAsyncioTestCase):
         ctx = Mock()
         ctx.reply = AsyncMock()
         ctx.invoke = AsyncMock()
-        cog = YoutubeCog(bot)
+        cog = YouTubeCog(bot)
         to_thread = AsyncMock(side_effect=asyncio.CancelledError)
 
         with (
             patch("asyncio.to_thread", to_thread),
             self.assertRaises(asyncio.CancelledError),
         ):
-            await YoutubeCog.download_video.callback(
+            await YouTubeCog.download_video.callback(
                 cog,
                 ctx,
                 "https://youtu.be/video",
@@ -671,13 +675,13 @@ class CogDelegationTest(unittest.IsolatedAsyncioTestCase):
         ctx = Mock()
         ctx.reply = AsyncMock()
         ctx.invoke = AsyncMock()
-        cog = YoutubeCog(bot)
+        cog = YouTubeCog(bot)
 
         with (
             patch("asyncio.to_thread", self.to_thread_mock()),
             self.assertRaises(VideoCheckError),
         ):
-            await YoutubeCog.download_video.callback(
+            await YouTubeCog.download_video.callback(
                 cog,
                 ctx,
                 "https://youtu.be/video",
@@ -685,7 +689,7 @@ class CogDelegationTest(unittest.IsolatedAsyncioTestCase):
 
         ctx.invoke.assert_not_awaited()
 
-        await YoutubeCog.download_video_error(
+        await YouTubeCog.download_video_error(
             cog,
             ctx,
             failure,

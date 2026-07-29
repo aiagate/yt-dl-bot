@@ -5,7 +5,7 @@ from unittest.mock import AsyncMock, Mock, call, patch
 
 from discord.ext import commands
 
-from yt_dl_bot.application_services import DownloadResult
+from yt_dl_bot.application_results import DownloadResult
 from yt_dl_bot.cogs.systemcog import SystemCog
 
 INITIAL_EXTENSIONS = (

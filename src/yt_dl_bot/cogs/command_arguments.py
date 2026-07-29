@@ -28,10 +28,6 @@ class TwitchURL(ServiceURLConverter):
     service = "twitch"
 
 
-# Compatibility alias. New code should use YouTubeURL.
-YoutubeURL = YouTubeURL
-
-
 async def handle_url_argument_error(ctx, error, *, usage):
     """Reply to expected argument errors and return whether handled."""
     if isinstance(error, commands.MissingRequiredArgument):

@@ -15,8 +15,8 @@ from yt_dl_bot.download_service import (
     RetryPolicy,
     RetryStatus,
 )
-from yt_dl_bot.youtubemodule import YoutubeModule
-from yt_dl_bot.ytdlpmodule import YtdlpModule
+from yt_dl_bot.youtube_downloader import YouTubeDownloader
+from yt_dl_bot.yt_dlp_downloader import YtDlpDownloader
 
 
 class FakeYoutubeDL:
@@ -101,8 +101,8 @@ class DownloadModuleTestCase:
         )
 
 
-class YoutubeModuleBoundaryTest(DownloadModuleTestCase, unittest.TestCase):
-    module_type = YoutubeModule
+class YouTubeDownloaderBoundaryTest(DownloadModuleTestCase, unittest.TestCase):
+    module_type = YouTubeDownloader
 
     def test_download_uses_injected_clock_paths_and_artifact_mover(self):
         result = self.module.download_video("https://youtu.be/video")
@@ -260,10 +260,10 @@ class YoutubeModuleBoundaryTest(DownloadModuleTestCase, unittest.TestCase):
         )
 
     def test_download_options_are_fresh_for_each_call(self):
-        first = self.module.ops({}, "/tmp/first.%(ext)s")
+        first = self.module.build_options("/tmp/first.%(ext)s")
         first["postprocessors"].append({"key": "test-only"})
 
-        second = self.module.ops({}, "/tmp/second.%(ext)s")
+        second = self.module.build_options("/tmp/second.%(ext)s")
 
         self.assertNotIn(
             {"key": "test-only"},
@@ -298,7 +298,7 @@ class YoutubeModuleBoundaryTest(DownloadModuleTestCase, unittest.TestCase):
         error = yt_dlp.utils.DownloadError(
             "This live event will begin in 1 minutes.",
         )
-        self.module = YoutubeModule(
+        self.module = YouTubeDownloader(
             self.dependencies,
             retry_policy=RetryPolicy(
                 max_attempts=2,
@@ -318,7 +318,7 @@ class YoutubeModuleBoundaryTest(DownloadModuleTestCase, unittest.TestCase):
         error = yt_dlp.utils.DownloadError(
             "This live event will begin in 2 hours.",
         )
-        self.module = YoutubeModule(
+        self.module = YouTubeDownloader(
             self.dependencies,
             retry_policy=RetryPolicy(
                 max_attempts=10,
@@ -338,7 +338,7 @@ class YoutubeModuleBoundaryTest(DownloadModuleTestCase, unittest.TestCase):
         error = yt_dlp.utils.DownloadError(
             "This live event will begin in 1 minutes.",
         )
-        self.module = YoutubeModule(
+        self.module = YouTubeDownloader(
             self.dependencies,
             retry_policy=RetryPolicy(
                 max_attempts=2,
@@ -354,7 +354,7 @@ class YoutubeModuleBoundaryTest(DownloadModuleTestCase, unittest.TestCase):
         self.sleep.assert_called_once_with(30.0)
         self.assertEqual(self.module.get_info.call_count, 2)
 
-    def test_live_timer_retains_retry_delay_compatibility(self):
+    def test_live_timer_uses_retry_delay(self):
         error = yt_dlp.utils.DownloadError(
             "Premieres in 7 hours.",
         )
@@ -391,8 +391,8 @@ class RetryPolicyTest(unittest.TestCase):
             RetryPolicy(max_wait_seconds=-1)
 
 
-class YtdlpModuleBoundaryTest(DownloadModuleTestCase, unittest.TestCase):
-    module_type = YtdlpModule
+class YtDlpDownloaderBoundaryTest(DownloadModuleTestCase, unittest.TestCase):
+    module_type = YtDlpDownloader
 
     def test_download_moves_only_artifacts_reported_as_existing(self):
         stem = Path("/tmp/downloads/2026-07-28-0905_video：id")
@@ -446,15 +446,15 @@ class YtdlpModuleBoundaryTest(DownloadModuleTestCase, unittest.TestCase):
     def test_ops_uses_injected_cookie_existence_check(self):
         self.existing_paths.add(Path("cookie/cookies.txt"))
 
-        options = self.module.ops("/tmp/video.%(ext)s")
+        options = self.module.build_options("/tmp/video.%(ext)s")
 
         self.assertEqual(options["cookiefile"], "cookie/cookies.txt")
 
     def test_download_options_are_fresh_for_each_call(self):
-        first = self.module.ops("/tmp/first.%(ext)s")
+        first = self.module.build_options("/tmp/first.%(ext)s")
         first["postprocessors"].append({"key": "test-only"})
 
-        second = self.module.ops("/tmp/second.%(ext)s")
+        second = self.module.build_options("/tmp/second.%(ext)s")
 
         self.assertNotIn(
             {"key": "test-only"},

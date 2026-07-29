@@ -1,16 +1,12 @@
-import importlib
-import os
-import sys
 import unittest
 from pathlib import Path
 from types import SimpleNamespace
-from unittest.mock import patch
 
-from yt_dl_bot.chatdatamodule import ChatDataModule
-from yt_dl_bot.discord_bot_main import MyBot
+from yt_dl_bot.chat_highlights import ChatHighlightPipeline
+from yt_dl_bot.discord_bot_main import DownloadBot
 from yt_dl_bot.setting import Settings
-from yt_dl_bot.youtubemodule import YoutubeModule
-from yt_dl_bot.ytdlpmodule import YtdlpModule
+from yt_dl_bot.youtube_downloader import YouTubeDownloader
+from yt_dl_bot.yt_dlp_downloader import YtDlpDownloader
 
 
 def settings_for(name):
@@ -31,7 +27,7 @@ class ApplicationSettingsTest(unittest.IsolatedAsyncioTestCase):
     async def test_bot_keeps_the_composition_root_settings_instance(self):
         settings = settings_for("first")
         services = SimpleNamespace(name="services")
-        bot = MyBot(
+        bot = DownloadBot(
             command_prefix="!",
             settings=settings,
             services=services,
@@ -45,10 +41,10 @@ class ApplicationSettingsTest(unittest.IsolatedAsyncioTestCase):
         first = settings_for("first")
         second = settings_for("second")
 
-        first_youtube = YoutubeModule(settings=first)
-        second_ytdlp = YtdlpModule(settings=second)
-        first_chat = ChatDataModule("video", settings=first)
-        second_chat = ChatDataModule("video", settings=second)
+        first_youtube = YouTubeDownloader(settings=first)
+        second_ytdlp = YtDlpDownloader(settings=second)
+        first_chat = ChatHighlightPipeline("video", settings=first)
+        second_chat = ChatHighlightPipeline("video", settings=second)
 
         self.assertEqual(
             first_youtube.dependencies.tmp_path,
@@ -68,17 +64,6 @@ class ApplicationSettingsTest(unittest.IsolatedAsyncioTestCase):
         )
         self.assertEqual(first_chat.image_path.parent, Path("/first/cache"))
         self.assertEqual(second_chat.image_path.parent, Path("/second/cache"))
-
-    def test_property_compatibility_module_has_no_environment_side_effect(self):
-        with patch.dict(os.environ, {}, clear=True):
-            sys.modules.pop("yt_dl_bot.property", None)
-            module = importlib.import_module("yt_dl_bot.property")
-
-        self.assertEqual(
-            module.INITIAL_EXTENSIONS,
-            settings_for("test").INITIAL_EXTENSIONS,
-        )
-        self.assertFalse(hasattr(module, "DISCORD_KEY"))
 
 
 if __name__ == "__main__":

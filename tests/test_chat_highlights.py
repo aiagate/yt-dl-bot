@@ -4,8 +4,8 @@ from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import Mock, patch
 
-from yt_dl_bot.chatdatamodule import (
-    ChatDataModule,
+from yt_dl_bot.chat_highlights import (
+    ChatHighlightPipeline,
     HighlightAnalyzer,
     MatplotlibGraphRenderer,
     PytchatSource,
@@ -44,7 +44,7 @@ class HighlightAnalyzerTest(unittest.TestCase):
 
 
 class PytchatSourceTest(unittest.TestCase):
-    @patch("yt_dl_bot.chatdatamodule.create")
+    @patch("yt_dl_bot.chat_highlights.create")
     def test_collects_elapsed_times_and_always_terminates_chat(self, create):
         chat = create.return_value
         chat.is_alive.side_effect = [True, False]
@@ -59,7 +59,7 @@ class PytchatSourceTest(unittest.TestCase):
         self.assertEqual(elapsed_times, ["0:01", "0:02"])
         chat.terminate.assert_called_once_with()
 
-    @patch("yt_dl_bot.chatdatamodule.create")
+    @patch("yt_dl_bot.chat_highlights.create")
     def test_large_collection_is_lazy_and_not_buffered(self, create):
         chat = create.return_value
         chat.is_alive.return_value = True
@@ -79,7 +79,7 @@ class PytchatSourceTest(unittest.TestCase):
         chat.terminate.assert_called_once_with()
 
 
-class ChatDataModuleTest(unittest.TestCase):
+class ChatHighlightPipelineTest(unittest.TestCase):
     def setUp(self):
         self.settings = SimpleNamespace(TMP_PATH="downloads/cache/")
 
@@ -89,7 +89,7 @@ class ChatDataModuleTest(unittest.TestCase):
         renderer = Mock()
         clock = Mock()
         clock.now.return_value = datetime.datetime(2026, 7, 28, 12, 34)
-        module = ChatDataModule(
+        module = ChatHighlightPipeline(
             "video-id",
             settings=self.settings,
             chat_source=source,
@@ -110,15 +110,15 @@ class ChatDataModuleTest(unittest.TestCase):
         )
         self.assertEqual(highlights, [[0, "https://youtu.be/video-id?t=0s"]])
 
-    def test_legacy_methods_delegate_to_analyzer(self):
-        module = ChatDataModule("video-id", settings=self.settings)
+    def test_analysis_helpers_delegate_to_analyzer(self):
+        module = ChatHighlightPipeline("video-id", settings=self.settings)
 
         self.assertEqual(module._elapsed_seconds("02:03"), 123)
-        self.assertEqual(module.get_peaktime([0, 0, 0.5]), [30])
+        self.assertEqual(module.get_peak_times([0, 0, 0.5]), [30])
 
 
 class MatplotlibGraphRendererTest(unittest.TestCase):
-    @patch("yt_dl_bot.chatdatamodule.plt")
+    @patch("yt_dl_bot.chat_highlights.plt")
     def test_render_creates_parent_and_closes_figure(self, plt):
         figure = plt.figure.return_value
         image_path = Path("downloads/cache/graph.png")

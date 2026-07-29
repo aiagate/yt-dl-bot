@@ -7,7 +7,6 @@ from unittest.mock import Mock
 
 import yt_dlp
 
-from yt_dl_bot.application_services import VideoDownloadService
 from yt_dl_bot.cancellation import (
     CancellationToken,
     DownloadCancelled,
@@ -19,6 +18,7 @@ from yt_dl_bot.download_engine import (
     youtube_download_policy,
 )
 from yt_dl_bot.download_service import DownloadDependencies, RetryPolicy
+from yt_dl_bot.video_download_service import VideoDownloadService
 
 
 def dependencies():

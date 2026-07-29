@@ -15,8 +15,8 @@ from yt_dl_bot.download_engine import (
     youtube_download_policy,
 )
 from yt_dl_bot.download_service import DownloadDependencies, RetryPolicy
-from yt_dl_bot.youtubemodule import YoutubeModule
-from yt_dl_bot.ytdlpmodule import YtdlpModule
+from yt_dl_bot.youtube_downloader import YouTubeDownloader
+from yt_dl_bot.yt_dlp_downloader import YtDlpDownloader
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 SOURCE_PATH = PROJECT_ROOT / "src" / "yt_dl_bot"
@@ -91,17 +91,17 @@ class DownloadPolicyTest(unittest.TestCase):
         error = yt_dlp.utils.DownloadError(
             "This live event will begin in 2 hours.",
         )
-        youtube = YoutubeModule(dependencies())
-        generic = YtdlpModule(dependencies())
+        youtube = YouTubeDownloader(dependencies())
+        generic = YtDlpDownloader(dependencies())
         youtube.get_info = Mock(side_effect=error)
         generic.get_info = Mock(side_effect=error)
 
         self.assertIn(
             "Will be downloaded in",
-            youtube.data_check("https://youtu.be/video"),
+            youtube.check_availability("https://youtu.be/video"),
         )
         with self.assertRaises(yt_dlp.utils.DownloadError):
-            generic.data_check("https://example.test/video")
+            generic.check_availability("https://example.test/video")
 
 
 class ArtifactStorageTest(unittest.TestCase):
@@ -122,7 +122,7 @@ class ArtifactStorageTest(unittest.TestCase):
         metadata = Path("/tmp/downloads/video.info.json")
 
         with self.assertRaises(OSError) as raised:
-            engine._move_artifacts(
+            engine.artifact_store.store(
                 DownloadedArtifacts(
                     video=video,
                     metadata=(metadata,),
@@ -189,7 +189,7 @@ class ArtifactStorageTest(unittest.TestCase):
                 OSError,
                 "injected thumbnail move failure",
             ):
-                engine._move_artifacts(artifacts)
+                engine.artifact_store.store(artifacts)
 
             self.assertTrue(all(artifact.exists() for artifact in (video, metadata, thumbnail)))
             self.assertFalse((save_path / video.name).exists())
@@ -226,7 +226,7 @@ class ArtifactStorageTest(unittest.TestCase):
                 youtube_download_policy(),
             )
 
-            engine._move_artifacts(
+            engine.artifact_store.store(
                 DownloadedArtifacts(
                     video=video,
                     metadata=(metadata,),
@@ -260,7 +260,7 @@ class ArtifactStorageTest(unittest.TestCase):
             shutil.Error,
             "Destination path already exists",
         ):
-            engine._move_artifacts(
+            engine.artifact_store.store(
                 DownloadedArtifacts(
                     video=Path("/tmp/downloads/video.mp4"),
                     metadata=(Path("/tmp/downloads/video.info.json"),),
@@ -271,36 +271,33 @@ class ArtifactStorageTest(unittest.TestCase):
         injected_dependencies.move.assert_not_called()
 
 
-class FacadeStructureTest(unittest.TestCase):
-    def test_facades_keep_public_api_and_explicit_policies(self):
-        youtube = YoutubeModule(dependencies())
-        generic = YtdlpModule(dependencies())
+class DownloaderStructureTest(unittest.TestCase):
+    def test_downloaders_expose_canonical_api_and_explicit_policies(self):
+        youtube = YouTubeDownloader(dependencies())
+        generic = YtDlpDownloader(dependencies())
 
         expected_methods = (
             "check_availability",
-            "data_check",
             "build_options",
             "download_video",
             "get_info",
             "live_timer",
-            "ops",
             "get_video_id",
-            "get_videoid",
         )
-        for facade in (youtube, generic):
-            with self.subTest(facade=type(facade).__name__):
+        for downloader in (youtube, generic):
+            with self.subTest(downloader=type(downloader).__name__):
                 self.assertTrue(
-                    all(callable(getattr(facade, method)) for method in expected_methods)
+                    all(callable(getattr(downloader, method)) for method in expected_methods)
                 )
-                self.assertIsInstance(facade.engine, DownloadEngine)
+                self.assertIsInstance(downloader.engine, DownloadEngine)
 
         self.assertTrue(youtube.engine.policy.live_from_start)
         self.assertTrue(generic.engine.policy.use_cookie_file)
 
-    def test_shared_download_implementation_is_not_duplicated_in_facades(self):
-        facade_paths = (
-            SOURCE_PATH / "youtubemodule.py",
-            SOURCE_PATH / "ytdlpmodule.py",
+    def test_shared_download_implementation_is_not_duplicated_in_adapters(self):
+        adapter_paths = (
+            SOURCE_PATH / "youtube_downloader.py",
+            SOURCE_PATH / "yt_dlp_downloader.py",
         )
         forbidden = (
             "yt_dlp",
@@ -311,7 +308,7 @@ class FacadeStructureTest(unittest.TestCase):
             "bestvideo+bestaudio/best",
         )
 
-        for path in facade_paths:
+        for path in adapter_paths:
             source = path.read_text()
             with self.subTest(path=path.name):
                 self.assertIn("DownloadEngine", source)
