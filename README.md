@@ -31,8 +31,119 @@ cp .env.example .env
 The local `.env` file is ignored by Git. Keep the Discord credential there and
 never commit it.
 
-Runtime data paths default to repository-local directories and can be changed
-with `DOWNLOADS_PATH` and `COOKIE_PATH`.
+Runtime data paths default to repository-local directories. When running the
+Python application directly, override them with `SAVE_PATH`, `TMP_PATH`,
+`GRAPH_SAVE_PATH`, or `LOG_PATH`. In Compose, `DOWNLOADS_PATH` and `COOKIE_PATH`
+select the host directories mounted at `/app/downloads` and `/app/cookie`;
+application paths inside the container remain unchanged. Twitch downloads use
+`cookie/cookies.txt` when that file exists.
+
+## Architecture
+
+The bot keeps Discord handling separate from download and chat processing:
+
+```text
+Discord message
+  -> MainCog / MessageRouter
+  -> YouTubeCog or TwitchCog
+  -> application service
+  -> YouTubeModule or YtdlpModule compatibility facade
+  -> shared DownloadEngine
+  -> yt-dlp and the filesystem
+```
+
+`ApplicationServices.from_settings()` creates the services used by the Cogs.
+The application services translate extractor, chat, and filesystem failures
+into application errors. `DownloadEngine` contains the shared yt-dlp workflow,
+while its `DownloadPolicy` provides the site-specific behavior. YouTube
+highlight creation follows a separate
+`YoutubeHighlightService -> ChatDataModule -> PytchatSource / HighlightAnalyzer
+/ MatplotlibGraphRenderer` path.
+
+The main implementation areas are:
+
+- `cogs/`: Discord commands, replies, embeds, and automatic message routing.
+- `application_services.py`: Discord-independent use cases and result objects.
+- `download_engine.py`: yt-dlp options, retry behavior, artifact discovery, and
+  final storage.
+- `chatdatamodule.py`: replay-chat collection, peak detection, and graph
+  rendering.
+- `setting.py`: environment-backed runtime settings and the initial Cog list.
+
+### Commands and automatic routing
+
+The command prefix is `!`. User-facing media commands are:
+
+```text
+!youtube download <url>
+!youtube highlight <url>
+!twitch download <url>
+```
+
+Messages containing only a supported HTTP(S) URL are routed automatically:
+
+| Channel setting | YouTube URL | Twitch URL |
+| --- | --- | --- |
+| `DOWNLOAD_CHANNEL` | `youtube download` | `twitch download` |
+| `HIGHLIGHT_CHANNEL` | `youtube highlight` | ignored |
+
+Leading and trailing whitespace is accepted, but surrounding prose is not. Bot
+messages, unsupported hosts, unsupported channels, and normal `!` commands are
+left alone.
+
+Owner-only administration commands are `!system close`, `!cog load <name>`,
+`!cog reload <name>`, and `!cog unload <name>`. Cog commands accept `all`;
+unloading all Cogs or `systemcog` additionally requires `-f`.
+
+### YouTube and Twitch behavior
+
+Both download paths use the shared engine and move completed artifacts out of
+the cache. Their policies differ:
+
+- YouTube retries recognized scheduled/live conditions, starts live downloads
+  from the beginning, and requires both metadata and thumbnail artifacts.
+- Twitch uses the generic yt-dlp policy without scheduled retries or
+  `live_from_start`. It reports an offline stream separately and uses
+  `cookie/cookies.txt` when present; metadata and thumbnail artifacts are
+  optional.
+- Highlight creation is YouTube-only. It reads replay chat, identifies activity
+  peaks in 30-second buckets, posts the links and graph, then archives the graph.
+
+### Artifact layout
+
+With the default settings, yt-dlp writes temporary files under
+`downloads/cache/` and successful processing produces:
+
+```text
+downloads/
+├── <timestamp>_<video-id>.<video-extension>
+├── metadata/
+│   └── <timestamp>_<video-id>.<metadata-extension>
+├── thumbnail/
+│   └── <timestamp>_<video-id>.<image-extension>
+└── graph/
+    └── scoregraph_<timestamp>_<video-id>.png
+```
+
+The video is stored directly under `SAVE_PATH`. Metadata and thumbnails are
+stored in its `metadata/` and `thumbnail/` children. Highlight graphs are
+created under `TMP_PATH` and moved to `GRAPH_SAVE_PATH` after they are posted.
+
+### Extending the bot
+
+To add a Cog, create a module under `src/yt_dl_bot/cogs/` with an async
+`setup(bot)` function, register commands or listeners on a `commands.Cog`, and
+add its import path to `DEFAULT_INITIAL_EXTENSIONS` in `setting.py`. Obtain
+configuration from `bot.settings` and shared use cases from `bot.services`
+instead of constructing them inside command handlers.
+
+To add a download source, first add strict URL identification/validation in
+`url_validation.py`. Reuse `DownloadEngine` with a suitable `DownloadPolicy`
+when the yt-dlp workflow applies, wrap it in an application service that exposes
+stable result types and application errors, add that service to
+`ApplicationServices`, and keep Discord presentation in a dedicated Cog.
+Dependency-bearing logic should accept collaborators explicitly so tests can
+replace network, clock, sleep, and filesystem behavior.
 
 ## Compose
 
