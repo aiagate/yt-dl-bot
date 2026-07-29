@@ -14,7 +14,7 @@ from collections.abc import Callable, Sequence
 from pathlib import Path
 from typing import Any
 
-DEFAULT_YTDLP_URL = "https://www.youtube.com/watch?v=YE7VzlLtp-4"
+DEFAULT_YTDLP_URL = "https://www.w3schools.com/html/mov_bbb.mp4"
 DEFAULT_PYTCHAT_VIDEO_ID = "h4M5iFLKWqU"
 
 

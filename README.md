@@ -229,6 +229,12 @@ The validation helpers are covered by ordinary offline unit tests. The yt-dlp
 and pytchat probes intentionally run only in the separate scheduled/manual
 workflow, so regular CI does not depend on external media services.
 
+The first scheduled run detected current upstream drift in pytchat 0.5.5:
+the former default replay is now invalid, while multiple valid public archived
+replays timed out or returned an empty response. The pytchat job deliberately
+remains red while that integration is investigated; the workflow does not
+silently skip the probe or treat an empty replay batch as success.
+
 The mypy configuration requires complete annotations on every function,
 typed generic arguments and decorators, explicit optional types, type-safe
 returns, strict equality checks, reachable code, and actively used
