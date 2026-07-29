@@ -31,10 +31,12 @@ cp .env.example .env
 The local `.env` file is ignored by Git. Keep the Discord credential there and
 never commit it.
 
-Runtime data paths default to repository-local directories. Override them with
-`SAVE_PATH`, `TMP_PATH`, `GRAPH_SAVE_PATH`, or `LOG_PATH`. Twitch downloads use
-`cookie/cookies.txt` when that file exists; the cookie path is not currently
-configurable.
+Runtime data paths default to repository-local directories. When running the
+Python application directly, override them with `SAVE_PATH`, `TMP_PATH`,
+`GRAPH_SAVE_PATH`, or `LOG_PATH`. In Compose, `DOWNLOADS_PATH` and `COOKIE_PATH`
+select the host directories mounted at `/app/downloads` and `/app/cookie`;
+application paths inside the container remain unchanged. Twitch downloads use
+`cookie/cookies.txt` when that file exists.
 
 ## Architecture
 
