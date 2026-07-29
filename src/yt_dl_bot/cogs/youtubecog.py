@@ -1,5 +1,3 @@
-#! ./.venv/bin/python
-
 # ---standard library---
 import asyncio
 
@@ -44,7 +42,6 @@ class YoutubeCog(commands.Cog):
             self.bot.get_command("send_video_output_log"),
             result=result,
         )
-        return
 
     @download_video.error
     async def download_video_error(self, ctx, error):
@@ -91,7 +88,6 @@ class YoutubeCog(commands.Cog):
             self.highlight_service.archive_graph,
             graph_image,
         )
-        return
 
     @get_highlight.error
     async def get_highlight_error(self, ctx, error):
