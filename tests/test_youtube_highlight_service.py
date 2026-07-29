@@ -56,10 +56,10 @@ class HighlightServiceTest(unittest.TestCase):
         self.assertEqual(result.channel_name, "Channel")
         self.assertEqual(result.graph_image, Path("/tmp/graph.png"))
         self.assertEqual(
-            result.highlight_fields,
+            result.highlights,
             (
-                "0:00:30\thttps://youtu.be/video-id?t=30s\n"
-                "0:01:30\thttps://youtu.be/video-id?t=90s\n",
+                Highlight(30, "https://youtu.be/video-id?t=30s"),
+                Highlight(90, "https://youtu.be/video-id?t=90s"),
             ),
         )
 

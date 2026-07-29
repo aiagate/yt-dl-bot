@@ -2,7 +2,7 @@
 import asyncio
 
 # ---third party library---
-from discord import Embed, File
+from discord import File
 from discord.ext import commands
 
 # ---local library---
@@ -11,6 +11,7 @@ from .command_arguments import (
     YouTubeURL,
     handle_url_argument_error,
 )
+from .highlight_presenter import create_highlight_embed
 
 
 class YouTubeCog(commands.Cog):
@@ -71,15 +72,7 @@ class YouTubeCog(commands.Cog):
             filename="image.png",
         )
 
-        embed = Embed(
-            title=result.title,
-            description=result.channel_name,
-            color=0xFF0000,
-        )
-        embed.set_thumbnail(url=result.thumbnail_url)
-        for field in result.highlight_fields:
-            embed.add_field(name="highlight", value=field)
-        embed.set_image(url="attachment://image.png")
+        embed = create_highlight_embed(result)
 
         await ctx.invoke(
             self.bot.get_command("send_highlight_output_log"),
