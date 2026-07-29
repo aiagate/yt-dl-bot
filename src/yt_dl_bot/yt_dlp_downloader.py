@@ -6,7 +6,6 @@ from .download_engine import (
     generic_download_policy,
 )
 from .setting import Settings
-from .url_validation import extract_youtube_video_id
 
 
 class YtDlpDownloader:
@@ -36,12 +35,3 @@ class YtDlpDownloader:
 
     def get_info(self, url):
         return self.engine.get_info(url)
-
-    def live_timer(self, info):
-        return self.engine.live_timer(info)
-
-    def build_options(self, outpath):
-        return self.engine.build_options(outpath)
-
-    def get_video_id(self, url):
-        return extract_youtube_video_id(url)

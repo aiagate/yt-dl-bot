@@ -278,11 +278,8 @@ class DownloaderStructureTest(unittest.TestCase):
 
         expected_methods = (
             "check_availability",
-            "build_options",
             "download_video",
             "get_info",
-            "live_timer",
-            "get_video_id",
         )
         for downloader in (youtube, generic):
             with self.subTest(downloader=type(downloader).__name__):
@@ -293,6 +290,7 @@ class DownloaderStructureTest(unittest.TestCase):
 
         self.assertTrue(youtube.engine.policy.live_from_start)
         self.assertTrue(generic.engine.policy.use_cookie_file)
+        self.assertTrue(callable(youtube.get_video_id))
 
     def test_shared_download_implementation_is_not_duplicated_in_adapters(self):
         adapter_paths = (
