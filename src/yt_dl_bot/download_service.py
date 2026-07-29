@@ -100,7 +100,7 @@ class RetryPolicy:
     max_attempts: int = 10
     max_wait_seconds: float = 6 * 60 * 60
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         if self.max_attempts < 1:
             raise ValueError("max_attempts must be at least 1")
         if self.max_wait_seconds < 0:

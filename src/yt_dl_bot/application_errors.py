@@ -2,7 +2,7 @@
 
 
 class ApplicationServiceError(Exception):
-    def __init__(self, message, *, original_error):
+    def __init__(self, message: str, *, original_error: BaseException) -> None:
         super().__init__(message)
         self.original_error = original_error
 

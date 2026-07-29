@@ -53,14 +53,23 @@ python_version = "3.12"
 files = ["src/yt_dl_bot"]
 plugins = ["pydantic.mypy"]
 check_untyped_defs = true
+disallow_any_generics = true
+disallow_incomplete_defs = true
+disallow_untyped_decorators = true
+disallow_untyped_defs = true
 ignore_missing_imports = false
+no_implicit_optional = true
 show_error_codes = true
+strict_equality = true
+warn_return_any = true
+warn_unreachable = true
 warn_redundant_casts = true
+warn_unused_configs = true
 warn_unused_ignores = true
 
 [[tool.mypy.overrides]]
 # These runtime dependencies do not publish complete PEP 561 type information.
-module = ["pytchat", "pytchat.*", "yt_dlp", "yt_dlp.*"]
+module = ["pytchat", "pytchat.*", "yt_dlp"]
 ignore_missing_imports = true
 
 [tool.coverage.run]

@@ -188,7 +188,14 @@ uv lock --check
 docker compose --env-file .env.example config --quiet
 ```
 
-CI enforces Ruff formatting and linting across `src/` and `tests/`,
-incremental type checking of the core boundary and pure-logic modules, and at
-least 85% branch coverage. Run `uv run ruff format src tests` to apply
-formatting locally.
+CI enforces Ruff formatting and linting across `src/` and `tests/`, type
+checking of every module under `src/yt_dl_bot`, and at least 85% branch
+coverage. Run `uv run ruff format src tests` to apply formatting locally.
+
+The mypy configuration requires complete annotations on every function,
+typed generic arguments and decorators, explicit optional types, type-safe
+returns, strict equality checks, reachable code, and actively used
+configuration sections. Values read from untyped third-party APIs remain
+`object` at their input boundary until runtime validation narrows them. The
+narrowly scoped third-party missing-import overrides and discord.py decorator
+ignores are documented next to their configuration or call sites.

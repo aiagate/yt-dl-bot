@@ -14,10 +14,10 @@ class MessageAction(Enum):
     TWITCH_DOWNLOAD = "twitch download"
 
     @property
-    def command_name(self):
+    def command_name(self) -> str | None:
         if self in {self.IGNORE, self.COMMAND}:
             return None
-        return self.value
+        return str(self.value)
 
 
 @dataclass(frozen=True)
@@ -32,7 +32,13 @@ class MessageRouter:
     download_channel: int
     highlight_channel: int
 
-    def route(self, *, author_is_bot, content, channel_id):
+    def route(
+        self,
+        *,
+        author_is_bot: bool,
+        content: object,
+        channel_id: int,
+    ) -> MessageRoute:
         if author_is_bot or not isinstance(content, str):
             return MessageRoute(MessageAction.IGNORE)
 
