@@ -50,8 +50,13 @@ select = ["ASYNC", "ARG", "B", "E4", "E7", "E9", "F", "I", "RUF", "UP"]
 python_version = "3.12"
 files = [
     "src/yt_dl_bot/application_errors.py",
+    "src/yt_dl_bot/application_services.py",
     "src/yt_dl_bot/artifact_discovery.py",
     "src/yt_dl_bot/cancellation.py",
+    "src/yt_dl_bot/chat_highlights.py",
+    "src/yt_dl_bot/chatdatamodule.py",
+    "src/yt_dl_bot/download_engine.py",
+    "src/yt_dl_bot/download_service.py",
     "src/yt_dl_bot/error_reporting.py",
     "src/yt_dl_bot/external_error_adapter.py",
     "src/yt_dl_bot/message_router.py",
