@@ -31,6 +31,11 @@ cp .env.example .env
 The local `.env` file is ignored by Git. Keep the Discord credential there and
 never commit it.
 
+The bot reads ordinary prefixed commands and routes supported URLs from message
+text, so **Message Content Intent** must be enabled under **Bot > Privileged
+Gateway Intents** in the Discord Developer Portal. No other privileged gateway
+intent is required.
+
 Runtime data paths default to repository-local directories. When running the
 Python application directly, override them with `SAVE_PATH`, `TMP_PATH`,
 `GRAPH_SAVE_PATH`, or `LOG_PATH`. In Compose, `DOWNLOADS_PATH` and `COOKIE_PATH`

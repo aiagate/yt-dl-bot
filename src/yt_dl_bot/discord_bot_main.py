@@ -17,6 +17,16 @@ LOG_DATE_FORMAT = "%Y-%m-%d %H:%M:%S"
 FILE_LOGGERS = ("discord", __name__, "yt_dl_bot.youtube_downloader")
 
 
+def build_gateway_intents() -> discord.Intents:
+    """Return only the gateway intents needed by commands and message routing."""
+    intents = discord.Intents.none()
+    intents.guilds = True
+    intents.guild_messages = True
+    intents.dm_messages = True
+    intents.message_content = True
+    return intents
+
+
 def configure_logging(log_path: Path) -> logging.FileHandler:
     """Configure application file logging once and return its handler."""
     logging.basicConfig(
@@ -82,7 +92,7 @@ class DownloadBot(commands.Bot):
         )
 
         # スーパークラスのコンストラクタに値を渡して実行。
-        super().__init__(intents=discord.Intents.all(), command_prefix=command_prefix)
+        super().__init__(intents=build_gateway_intents(), command_prefix=command_prefix)
 
     async def setup_hook(self) -> None:
         # 設定されたリストからCogをロード
