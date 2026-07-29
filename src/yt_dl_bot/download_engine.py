@@ -11,6 +11,7 @@ from typing import Protocol
 import yt_dlp
 
 from .artifact_discovery import DownloadedArtifacts, discover_download_artifacts
+from .artifact_store import ArtifactStore
 from .download_service import (
     DownloadDependencies,
     DownloadRetryLimitExceeded,
@@ -119,9 +120,15 @@ def build_output_name(info: Mapping[str, object], now: datetime.datetime) -> str
 
 
 class DownloadEngine:
-    def __init__(self, dependencies: DownloadDependencies, policy: DownloadPolicy) -> None:
+    def __init__(
+        self,
+        dependencies: DownloadDependencies,
+        policy: DownloadPolicy,
+        artifact_store: ArtifactStore | None = None,
+    ) -> None:
         self.dependencies = dependencies
         self.policy = policy
+        self.artifact_store = artifact_store or ArtifactStore.from_dependencies(dependencies)
 
     def get_info(self, url: str) -> DownloadInfo:
         with self.dependencies.ydl_factory() as ydl:
@@ -181,7 +188,7 @@ class DownloadEngine:
             )
 
         self._raise_if_cancelled(cancellation_token)
-        stored_artifacts = self._move_artifacts(artifacts)
+        stored_artifacts = self.artifact_store.store(artifacts)
         return DownloadOutcome(
             video_id=str(downloaded_info.get("id") or ""),
             title=str(
@@ -246,65 +253,8 @@ class DownloadEngine:
                 waited_seconds += wait_seconds
 
     def _move_artifacts(self, artifacts: DownloadedArtifacts) -> DownloadedArtifacts:
-        save_path = self.dependencies.save_path
-        metadata_path = save_path / "metadata"
-        thumbnail_path = save_path / "thumbnail"
-        self.dependencies.ensure_directory(save_path)
-        self.dependencies.ensure_directory(metadata_path)
-        self.dependencies.ensure_directory(thumbnail_path)
-
-        move_plan = [
-            (
-                artifacts.video,
-                save_path,
-                save_path / artifacts.video.name,
-            ),
-            *(
-                (
-                    metadata,
-                    metadata_path,
-                    metadata_path / metadata.name,
-                )
-                for metadata in artifacts.metadata
-            ),
-            *(
-                (
-                    thumbnail,
-                    thumbnail_path,
-                    thumbnail_path / thumbnail.name,
-                )
-                for thumbnail in artifacts.thumbnails
-            ),
-        ]
-        for _, _, destination in move_plan:
-            if self.dependencies.path_exists(destination):
-                raise shutil.Error(
-                    f"Destination path already exists: {destination}",
-                )
-
-        completed_moves: list[tuple[Path, Path]] = []
-        try:
-            for source, destination_directory, destination in move_plan:
-                self.dependencies.move(source, destination_directory)
-                completed_moves.append((source, destination))
-        except Exception as move_error:
-            rollback_errors: list[Exception] = []
-            for source, destination in reversed(completed_moves):
-                try:
-                    self.dependencies.move(destination, source)
-                except Exception as rollback_error:
-                    rollback_errors.append(rollback_error)
-            if rollback_errors:
-                move_error.add_note(
-                    "Failed to roll back one or more artifact moves: "
-                    + "; ".join(str(error) for error in rollback_errors),
-                )
-            raise
-        return DownloadedArtifacts(
-            video=move_plan[0][2],
-            metadata=tuple(metadata_path / path.name for path in artifacts.metadata),
-            thumbnails=tuple(thumbnail_path / path.name for path in artifacts.thumbnails),
-        )
+        """Compatibility wrapper for callers of the former helper."""
+        return self.artifact_store.store(artifacts)
 
     @staticmethod
     def _raise_if_cancelled(cancellation_token: Cancellation | None) -> None:
