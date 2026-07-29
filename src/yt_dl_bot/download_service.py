@@ -10,15 +10,19 @@ from typing import Protocol
 from .external_error_adapter import youtube_scheduled_delay
 
 
-class YoutubeDLFactory(Protocol):
+class YouTubeDLFactory(Protocol):
     def __call__(self, options: dict | None = None): ...
+
+
+# Compatibility alias for the previous public spelling.
+YoutubeDLFactory = YouTubeDLFactory
 
 
 @dataclass(frozen=True)
 class DownloadDependencies:
     """Injectable operations used by the legacy download modules."""
 
-    ydl_factory: YoutubeDLFactory
+    ydl_factory: YouTubeDLFactory
     now: Callable[[], datetime]
     sleep: Callable[[float], None]
     path_exists: Callable[[Path], bool]

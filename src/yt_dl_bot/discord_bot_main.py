@@ -66,7 +66,7 @@ def configure_logging(log_path):
     return handler
 
 
-class MyBot(commands.Bot):
+class DownloadBot(commands.Bot):
     def __init__(self, command_prefix, settings, services=None):
         # loggerを作成
         self.logger = getLogger(__name__)
@@ -96,12 +96,16 @@ class MyBot(commands.Bot):
         self.logger.info("----------------")
 
 
+# Compatibility alias. New code should use DownloadBot.
+MyBot = DownloadBot
+
+
 def main(settings=None):
     settings = settings or Settings()
     configure_logging(settings.LOG_PATH)
 
     services = ApplicationServices.from_settings(settings)
-    bot = MyBot(
+    bot = DownloadBot(
         command_prefix="!",
         settings=settings,
         services=services,

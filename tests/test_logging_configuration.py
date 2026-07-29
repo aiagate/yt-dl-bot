@@ -87,7 +87,7 @@ class LoggingConfigurationTest(unittest.TestCase):
             ),
             patch.object(
                 discord_bot_main,
-                "MyBot",
+                "DownloadBot",
                 return_value=bot,
             ) as bot_class,
         ):

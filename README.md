@@ -47,7 +47,7 @@ Discord message
   -> MainCog / MessageRouter
   -> YouTubeCog or TwitchCog
   -> application service
-  -> YouTubeModule or YtdlpModule compatibility facade
+  -> YouTubeDownloader or YtDlpDownloader
   -> shared DownloadEngine
   -> yt-dlp and the filesystem
 ```
@@ -57,7 +57,7 @@ The application services translate extractor, chat, and filesystem failures
 into application errors. `DownloadEngine` contains the shared yt-dlp workflow,
 while its `DownloadPolicy` provides the site-specific behavior. YouTube
 highlight creation follows a separate
-`YoutubeHighlightService -> ChatDataModule -> PytchatSource / HighlightAnalyzer
+`YouTubeHighlightService -> ChatHighlightPipeline -> PytchatSource / HighlightAnalyzer
 / MatplotlibGraphRenderer` path.
 
 The main implementation areas are:
@@ -66,9 +66,15 @@ The main implementation areas are:
 - `application_services.py`: Discord-independent use cases and result objects.
 - `download_engine.py`: yt-dlp options, retry behavior, artifact discovery, and
   final storage.
-- `chatdatamodule.py`: replay-chat collection, peak detection, and graph
+- `chat_highlights.py`: replay-chat collection, peak detection, and graph
   rendering.
 - `setting.py`: environment-backed runtime settings and the initial Cog list.
+
+The former `YoutubeModule`, `YtdlpModule`, `ChatDataModule`, `MyBot`,
+`YoutubeCog`, and `YoutubeURL` names remain available as compatibility aliases.
+Likewise, the old `data_check`, `ops`, `get_peaktime`, and `plot_peak` methods
+delegate to their responsibility-revealing replacements. New integrations
+should use the names shown in the architecture diagram.
 
 ### Commands and automatic routing
 

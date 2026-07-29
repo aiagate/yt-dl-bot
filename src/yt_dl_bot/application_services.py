@@ -16,12 +16,12 @@ from .application_errors import (
     VideoDownloadError,
 )
 from .artifact_discovery import ArtifactDiscoveryError
-from .chatdatamodule import ChatDataModule
+from .chat_highlights import ChatHighlightPipeline
 from .download_engine import DownloadOutcome
 from .download_service import DownloadWaitError
 from .external_error_adapter import error_detail, is_twitch_offline
-from .youtubemodule import YoutubeModule
-from .ytdlpmodule import YtdlpModule
+from .youtube_downloader import YouTubeDownloader
+from .yt_dlp_downloader import YtDlpDownloader
 
 DOWNLOAD_ADAPTER_ERRORS = (
     yt_dlp.utils.DownloadError,
@@ -120,7 +120,7 @@ class VideoDownloadService:
 
     def check(self, url):
         try:
-            return self.downloader.data_check(url=url)
+            return self.downloader.check_availability(url=url)
         except DOWNLOAD_ADAPTER_ERRORS as error:
             raise VideoCheckError(
                 f"Unable to check video: {error_detail(error)}",
@@ -147,7 +147,7 @@ class VideoDownloadService:
 class TwitchDownloadService(VideoDownloadService):
     def check(self, url):
         try:
-            return self.downloader.data_check(url=url)
+            return self.downloader.check_availability(url=url)
         except DOWNLOAD_ADAPTER_ERRORS as error:
             if is_twitch_offline(error):
                 raise TwitchStreamOffline(error_detail(error)) from error
@@ -157,7 +157,7 @@ class TwitchDownloadService(VideoDownloadService):
             ) from error
 
 
-class YoutubeHighlightService:
+class YouTubeHighlightService:
     def __init__(
         self,
         settings,
@@ -170,7 +170,7 @@ class YoutubeHighlightService:
         self.settings = settings
         self.youtube = youtube
         self.chat_factory = chat_factory or (
-            lambda video_id: ChatDataModule(video_id, settings=settings)
+            lambda video_id: ChatHighlightPipeline(video_id, settings=settings)
         )
         self.path_exists = path_exists
         self.make_directory = make_directory
@@ -246,15 +246,19 @@ class YoutubeHighlightService:
 @dataclass(frozen=True)
 class ApplicationServices:
     youtube_download: VideoDownloadService
-    youtube_highlight: YoutubeHighlightService
+    youtube_highlight: YouTubeHighlightService
     twitch_download: TwitchDownloadService
 
     @classmethod
     def from_settings(cls, settings):
-        youtube = YoutubeModule(settings=settings)
-        twitch = YtdlpModule(settings=settings)
+        youtube = YouTubeDownloader(settings=settings)
+        twitch = YtDlpDownloader(settings=settings)
         return cls(
             youtube_download=VideoDownloadService(youtube),
-            youtube_highlight=YoutubeHighlightService(settings, youtube),
+            youtube_highlight=YouTubeHighlightService(settings, youtube),
             twitch_download=TwitchDownloadService(twitch),
         )
+
+
+# Compatibility alias. New code should use YouTubeHighlightService.
+YoutubeHighlightService = YouTubeHighlightService
