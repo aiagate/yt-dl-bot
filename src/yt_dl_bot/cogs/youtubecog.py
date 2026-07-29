@@ -8,12 +8,12 @@ from discord.ext import commands
 # ---local library---
 from ..cancellation import to_thread_cancellable
 from .command_arguments import (
-    YoutubeURL,
+    YouTubeURL,
     handle_url_argument_error,
 )
 
 
-class YoutubeCog(commands.Cog):
+class YouTubeCog(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
         self.settings = bot.settings
@@ -26,7 +26,7 @@ class YoutubeCog(commands.Cog):
             await ctx.send("Error: missing option")
 
     @youtube_cog.command(name="download", ignore_extra=False)
-    async def download_video(self, ctx, url: YoutubeURL):
+    async def download_video(self, ctx, url: YouTubeURL):
         text = await asyncio.to_thread(self.download_service.check, url)
 
         for t in text.split("\n"):
@@ -54,7 +54,7 @@ class YoutubeCog(commands.Cog):
         await ctx.invoke(self.bot.get_command("send_error_log"), error)
 
     @youtube_cog.command(name="highlight", ignore_extra=False)
-    async def get_highlight(self, ctx, url: YoutubeURL):
+    async def get_highlight(self, ctx, url: YouTubeURL):
         await ctx.reply("Starting get highlight...")
 
         result = await asyncio.to_thread(
@@ -101,4 +101,8 @@ class YoutubeCog(commands.Cog):
 
 
 async def setup(bot):
-    await bot.add_cog(YoutubeCog(bot))
+    await bot.add_cog(YouTubeCog(bot))
+
+
+# Compatibility alias. New code should use YouTubeCog.
+YoutubeCog = YouTubeCog

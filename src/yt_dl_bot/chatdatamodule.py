@@ -144,7 +144,7 @@ class SystemClock:
         return datetime.datetime.now()
 
 
-class ChatDataModule:
+class ChatHighlightPipeline:
     """Coordinate chat collection, analysis and graph rendering."""
 
     BUCKET_SECONDS = 30
@@ -183,25 +183,36 @@ class ChatDataModule:
     def count_score(self, comment_counts):
         return self.analyzer.count_score(comment_counts)
 
-    def plot_peak(self, score_data):
+    def render_score_graph(self, score_data):
         self.graph_renderer.render(
             score_data,
             self.analyzer.bucket_seconds,
             self.image_path,
         )
 
-    def get_peaktime(self, score_data):
+    def get_peak_times(self, score_data):
         return self.analyzer.peak_times(score_data)
 
     def get_highlight(self):
         self.logger.info("Collecting chat activity for %s", self.video_id)
         comment_counts = self.collect_comment_counts()
         score_data = self.count_score(comment_counts)
-        self.plot_peak(score_data)
+        self.render_score_graph(score_data)
 
         highlights = []
-        for seconds in self.get_peaktime(score_data):
+        for seconds in self.get_peak_times(score_data):
             url = f"{self.url}?t={seconds}s"
             self.logger.info("Highlight: %s", url)
             highlights.append([seconds, url])
         return highlights
+
+    # Compatibility wrappers for callers using the original public API.
+    def plot_peak(self, score_data):
+        return self.render_score_graph(score_data)
+
+    def get_peaktime(self, score_data):
+        return self.get_peak_times(score_data)
+
+
+# Compatibility alias. New code should use ChatHighlightPipeline.
+ChatDataModule = ChatHighlightPipeline

@@ -20,12 +20,16 @@ class ServiceURLConverter(commands.Converter):
             ) from error
 
 
-class YoutubeURL(ServiceURLConverter):
+class YouTubeURL(ServiceURLConverter):
     service = "youtube"
 
 
 class TwitchURL(ServiceURLConverter):
     service = "twitch"
+
+
+# Compatibility alias. New code should use YouTubeURL.
+YoutubeURL = YouTubeURL
 
 
 async def handle_url_argument_error(ctx, error, *, usage):

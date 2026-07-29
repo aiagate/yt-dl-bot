@@ -102,7 +102,7 @@ class DownloadEngine:
         with self.dependencies.ydl_factory() as ydl:
             return ydl.extract_info(url, download=False)
 
-    def data_check(self, url, info_loader=None):
+    def check_availability(self, url, info_loader=None):
         info_loader = info_loader or self.get_info
         try:
             info = info_loader(url)
@@ -113,6 +113,10 @@ class DownloadEngine:
                     return notice
             raise
         return f"Video title : {info['title']}\nDownload start..."
+
+    def data_check(self, url, info_loader=None):
+        """Compatibility wrapper for the former method name."""
+        return self.check_availability(url, info_loader=info_loader)
 
     def download_video(
         self,

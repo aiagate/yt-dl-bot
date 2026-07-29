@@ -277,11 +277,14 @@ class FacadeStructureTest(unittest.TestCase):
         generic = YtdlpModule(dependencies())
 
         expected_methods = (
+            "check_availability",
             "data_check",
+            "build_options",
             "download_video",
             "get_info",
             "live_timer",
             "ops",
+            "get_video_id",
             "get_videoid",
         )
         for facade in (youtube, generic):

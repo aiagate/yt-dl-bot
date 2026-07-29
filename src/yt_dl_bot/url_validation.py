@@ -31,7 +31,7 @@ _VIDEO_ID = re.compile(r"^[A-Za-z0-9_-]{1,128}$")
 
 
 @dataclass(frozen=True)
-class YoutubeVideoReference:
+class YouTubeVideoReference:
     video_id: str
     canonical_url: str
 
@@ -70,7 +70,7 @@ def validate_service_url(value: str, service: str) -> str:
     return url
 
 
-def parse_youtube_video_url(value: str) -> YoutubeVideoReference:
+def parse_youtube_video_url(value: str) -> YouTubeVideoReference:
     """Parse a supported YouTube video URL without network access.
 
     This is intended for work that needs an ID before yt-dlp extraction.
@@ -107,10 +107,14 @@ def parse_youtube_video_url(value: str) -> YoutubeVideoReference:
     if video_id is None or _VIDEO_ID.fullmatch(video_id) is None:
         raise ValueError("Invalid YouTube video URL")
 
-    return YoutubeVideoReference(
+    return YouTubeVideoReference(
         video_id=video_id,
         canonical_url=f"https://www.youtube.com/watch?v={video_id}",
     )
+
+
+# Compatibility alias for the previous public spelling.
+YoutubeVideoReference = YouTubeVideoReference
 
 
 def extract_youtube_video_id(value: str) -> str:
