@@ -181,7 +181,12 @@ class DownloadEngine:
             )
 
         self._raise_if_cancelled(cancellation_token)
-        stored_artifacts = self.artifact_store.store(artifacts)
+        stored_artifacts = self.artifact_store.store(
+            artifacts,
+            cancellation_check=(
+                cancellation_token.raise_if_cancelled if cancellation_token is not None else None
+            ),
+        )
         return DownloadOutcome(
             video_id=str(downloaded_info.get("id") or ""),
             title=str(

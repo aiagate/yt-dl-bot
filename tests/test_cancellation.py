@@ -125,6 +125,33 @@ class CancellationTokenTest(unittest.TestCase):
 
 
 class ThreadCancellationTest(unittest.IsolatedAsyncioTestCase):
+    async def test_worker_cancelled_before_external_io_never_starts_it(self):
+        worker_started = threading.Event()
+        allow_boundary_check = threading.Event()
+        worker_cancelled = threading.Event()
+        external_io = Mock()
+
+        def blocking_work(*, cancellation_token):
+            worker_started.set()
+            allow_boundary_check.wait()
+            try:
+                cancellation_token.raise_if_cancelled()
+                external_io()
+            except DownloadCancelled:
+                worker_cancelled.set()
+                raise
+
+        task = asyncio.create_task(to_thread_cancellable(blocking_work))
+        self.assertTrue(await asyncio.to_thread(worker_started.wait, 2))
+
+        task.cancel()
+        with self.assertRaises(asyncio.CancelledError):
+            await task
+        allow_boundary_check.set()
+
+        self.assertTrue(await asyncio.to_thread(worker_cancelled.wait, 2))
+        external_io.assert_not_called()
+
     async def test_async_cancellation_is_signalled_to_running_worker(self):
         worker_started = threading.Event()
         worker_cancelled = threading.Event()
@@ -148,6 +175,35 @@ class ThreadCancellationTest(unittest.IsolatedAsyncioTestCase):
 
         observed = await asyncio.to_thread(worker_cancelled.wait, 2)
         self.assertTrue(observed)
+
+    async def test_active_progress_hook_observes_async_cancellation(self):
+        engine = DownloadEngine(dependencies(), generic_download_policy())
+        worker_started = threading.Event()
+        emit_progress = threading.Event()
+        worker_cancelled = threading.Event()
+
+        def blocking_work(*, cancellation_token):
+            progress_hook = engine.build_options(
+                "/tmp/video.%(ext)s",
+                cancellation_token=cancellation_token,
+            )["progress_hooks"][0]
+            worker_started.set()
+            emit_progress.wait()
+            try:
+                progress_hook({"status": "downloading"})
+            except DownloadCancelled:
+                worker_cancelled.set()
+                raise
+
+        task = asyncio.create_task(to_thread_cancellable(blocking_work))
+        self.assertTrue(await asyncio.to_thread(worker_started.wait, 2))
+
+        task.cancel()
+        with self.assertRaises(asyncio.CancelledError):
+            await task
+        emit_progress.set()
+
+        self.assertTrue(await asyncio.to_thread(worker_cancelled.wait, 2))
 
     async def test_normal_completion_returns_worker_result(self):
         def blocking_work(value, *, cancellation_token):
