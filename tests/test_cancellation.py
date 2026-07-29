@@ -106,6 +106,9 @@ class CancellationTokenTest(unittest.TestCase):
                 future.result(timeout=2)
 
         engine.dependencies.sleep.assert_not_called()
+        info_loader.assert_called_once_with("https://youtu.be/video")
+        engine.dependencies.ydl_factory.assert_not_called()
+        engine.dependencies.now.assert_not_called()
 
     def test_application_service_does_not_translate_cancellation(self):
         downloader = Mock()
