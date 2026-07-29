@@ -2,6 +2,7 @@
 
 import datetime
 import shutil
+from collections.abc import Mapping
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -195,10 +196,21 @@ class YoutubeHighlightService:
             ) from error
 
         try:
+            if not isinstance(video_info, Mapping):
+                raise TypeError("video metadata must be a mapping")
             title = video_info.get("fulltitle") or video_info["title"]
             channel_name = video_info["channel"]
             thumbnail_url = video_info["thumbnail"]
-        except (KeyError, TypeError) as error:
+            for field_name, value in (
+                ("title", title),
+                ("channel", channel_name),
+                ("thumbnail", thumbnail_url),
+            ):
+                if not isinstance(value, str) or not value:
+                    raise ValueError(
+                        f"video metadata field {field_name!r} must be a non-empty string",
+                    )
+        except (KeyError, TypeError, ValueError) as error:
             # yt-dlp metadata is external input. Treat a malformed schema as an
             # adapter failure, while leaving unrelated programming errors free
             # to propagate.
