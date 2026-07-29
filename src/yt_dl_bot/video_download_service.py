@@ -8,7 +8,7 @@ import yt_dlp
 from .application_errors import VideoCheckError, VideoDownloadError
 from .application_results import DownloadResult
 from .artifact_discovery import ArtifactDiscoveryError
-from .download_engine import DownloadOutcome
+from .download_engine import Cancellation, DownloadOutcome
 from .download_service import DownloadWaitError
 from .external_error_adapter import error_detail, is_twitch_offline
 
@@ -22,18 +22,13 @@ DOWNLOAD_ADAPTER_ERRORS = (
 )
 
 
-class Cancellation(Protocol):
-    def raise_if_cancelled(self) -> None: ...
-
-
 class DownloadAdapter(Protocol):
-    def check_availability(self, *, url: str) -> str: ...
+    def check_availability(self, url: str) -> str: ...
 
-    def download_video(self, *, url: str) -> DownloadOutcome: ...
+    def download_video(self, url: str) -> DownloadOutcome: ...
 
     def download_video_cancellable(
         self,
-        *,
         url: str,
         cancellation_token: Cancellation,
     ) -> DownloadOutcome: ...
