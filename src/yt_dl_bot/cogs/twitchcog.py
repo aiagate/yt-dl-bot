@@ -1,5 +1,3 @@
-#! ./.venv/bin/python
-
 # ---standard library---
 import asyncio
 
@@ -48,7 +46,6 @@ class TwitchCog(commands.Cog):
             self.bot.get_command("send_video_output_log"),
             result=result,
         )
-        return
 
     @download_video.error
     async def download_video_error(self, ctx, error):

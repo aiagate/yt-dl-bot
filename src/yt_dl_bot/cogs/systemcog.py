@@ -1,5 +1,3 @@
-#! ./.venv/bin/python
-
 # ---standard library---
 import asyncio
 
@@ -50,7 +48,7 @@ class SystemCog(commands.Cog):
     @commands.is_owner()
     async def cogs_reload(self, ctx, *args, **kwargs):
         if len(args) == 0:
-            await ctx.send("Error: missing cog name opetand")
+            await ctx.send("Error: missing cog name operand")
             return
 
         for extension in _extension_names(
@@ -68,7 +66,7 @@ class SystemCog(commands.Cog):
     @commands.is_owner()
     async def cogs_load(self, ctx, *args, **kwargs):
         if len(args) == 0:
-            await ctx.send("Error: missing cog name opetand")
+            await ctx.send("Error: missing cog name operand")
             return
 
         for extension in _extension_names(
@@ -86,13 +84,13 @@ class SystemCog(commands.Cog):
     @commands.is_owner()
     async def cogs_unload(self, ctx, *args, **kwargs):
         if len(args) == 0:
-            await ctx.send("Error: missing cog name opetand")
+            await ctx.send("Error: missing cog name operand")
             return
 
         force_option = "-f" in args
         targets = tuple(argument for argument in args if argument != "-f")
         if not targets:
-            await ctx.send("Error: missing cog name opetand")
+            await ctx.send("Error: missing cog name operand")
             return
         if "all" in targets and not force_option:
             await ctx.send("Error: can't unload. (force unload : -f)")

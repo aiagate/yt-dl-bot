@@ -1,4 +1,3 @@
-#! .venv/bin/python
 from pathlib import Path
 
 from pydantic import SecretStr
@@ -30,7 +29,6 @@ class Settings(BaseSettings):
     GRAPH_SAVE_PATH: Path = Path("downloads/graph")
     TMP_PATH: Path = Path("downloads/cache")
     LOG_PATH: Path = Path("logs")
-    COLLECTOR_LOG_PATH: Path = Path("logs")
 
     model_config = SettingsConfigDict(
         env_file=(
