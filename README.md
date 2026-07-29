@@ -54,8 +54,9 @@ Discord message
 
 `ApplicationServices.from_settings()` creates the services used by the Cogs.
 The application services translate extractor, chat, and filesystem failures
-into application errors. `DownloadEngine` contains the shared yt-dlp workflow,
-while its `DownloadPolicy` provides the site-specific behavior. YouTube
+into application errors. `DownloadEngine` orchestrates the shared yt-dlp
+workflow, `DownloadPolicy` provides site-specific behavior, and `ArtifactStore`
+owns destination planning, collision checks, moves, and rollback. YouTube
 highlight creation follows a separate
 `YouTubeHighlightService -> ChatHighlightPipeline -> PytchatSource / HighlightAnalyzer
 / MatplotlibGraphRenderer` path.
@@ -68,8 +69,8 @@ The main implementation areas are:
 - `application_results.py`: use-case result objects and highlight field formatting.
 - `video_download_service.py`: video check and download use cases.
 - `youtube_highlight_service.py`: YouTube highlight creation and graph archival.
-- `download_engine.py`: yt-dlp options, retry behavior, artifact discovery, and
-  final storage.
+- `download_engine.py`: yt-dlp options, retry behavior, and download orchestration.
+- `artifact_store.py`: final artifact layout, collision checks, moves, and rollback.
 - `chat_highlights.py`: replay-chat collection, peak detection, and graph
   rendering.
 - `setting.py`: environment-backed runtime settings and the initial Cog list.
