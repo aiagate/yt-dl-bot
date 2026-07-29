@@ -1,7 +1,9 @@
 import importlib.util
 import json
+import subprocess
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 SCRIPT = Path(__file__).parents[1] / "scripts" / "external_smoke.py"
 SPEC = importlib.util.spec_from_file_location("external_smoke", SCRIPT)
@@ -45,11 +47,31 @@ class ExternalSmokeValidationTest(unittest.TestCase):
         with self.assertRaises(SystemExit):
             external_smoke.parse_args(["yt-dlp", "--attempts", "0"])
 
-    def test_ffmpeg_stage_runs_against_synthetic_input(self):
+    @patch.object(external_smoke.subprocess, "run")
+    def test_ffmpeg_stage_validates_postprocessed_output(self, run):
+        probe_payload = {
+            "streams": [{"codec_name": "aac"}],
+            "format": {"tags": {"title": "yt-dl-bot smoke"}},
+        }
+
+        def run_command(command, **_kwargs):
+            if command[0] == "ffmpeg":
+                Path(command[-1]).write_bytes(b"synthetic audio")
+                return subprocess.CompletedProcess(command, 0)
+            return subprocess.CompletedProcess(
+                command,
+                0,
+                stdout=json.dumps(probe_payload),
+                stderr="",
+            )
+
+        run.side_effect = run_command
+
         report = external_smoke.smoke_ffmpeg()
 
         self.assertEqual(report["stage"], "ffmpeg postprocessing")
-        self.assertGreater(report["bytes"], 0)
+        self.assertEqual(report["bytes"], len(b"synthetic audio"))
+        self.assertEqual(run.call_count, 2)
 
     def test_report_file_contains_json(self):
         from tempfile import TemporaryDirectory

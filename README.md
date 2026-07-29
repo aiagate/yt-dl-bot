@@ -203,6 +203,10 @@ It probes three boundaries independently:
 - local ffmpeg/ffprobe execution and metadata postprocessing using a one-second
   synthetic audio source.
 
+The ffmpeg matrix job installs `ffmpeg` and `ffprobe` explicitly before running
+its probe; ordinary unit tests mock these executables and require no system
+multimedia packages.
+
 Each job has bounded retries and a five-minute process timeout. Reports are
 written to the GitHub step summary and retained as JSON artifacts for 14 days.
 Failures do not block pull requests because upstream availability, geo/rate

@@ -48,6 +48,12 @@ jobs:
       - name: Install locked dependencies
         run: uv sync --locked
 
+      - name: Install ffmpeg prerequisites
+        if: matrix.stage == 'ffmpeg'
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes --no-install-recommends ffmpeg
+
       - name: Run bounded external probe
         run: >-
           timeout --signal=TERM --kill-after=15s 5m
