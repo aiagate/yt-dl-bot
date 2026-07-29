@@ -63,7 +63,11 @@ highlight creation follows a separate
 The main implementation areas are:
 
 - `cogs/`: Discord commands, replies, embeds, and automatic message routing.
-- `application_services.py`: Discord-independent use cases and result objects.
+- `application_services.py`: compatibility facade for the established application API.
+- `application_container.py`: composition root that wires adapters into services.
+- `application_results.py`: use-case result objects and highlight field formatting.
+- `video_download_service.py`: video check and download use cases.
+- `youtube_highlight_service.py`: YouTube highlight creation and graph archival.
 - `download_engine.py`: yt-dlp options, retry behavior, artifact discovery, and
   final storage.
 - `chat_highlights.py`: replay-chat collection, peak detection, and graph

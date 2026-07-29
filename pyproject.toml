@@ -50,6 +50,8 @@ select = ["ASYNC", "ARG", "B", "E4", "E7", "E9", "F", "I", "RUF", "UP"]
 python_version = "3.12"
 files = [
     "src/yt_dl_bot/application_errors.py",
+    "src/yt_dl_bot/application_container.py",
+    "src/yt_dl_bot/application_results.py",
     "src/yt_dl_bot/application_services.py",
     "src/yt_dl_bot/artifact_discovery.py",
     "src/yt_dl_bot/cancellation.py",
@@ -61,6 +63,8 @@ files = [
     "src/yt_dl_bot/external_error_adapter.py",
     "src/yt_dl_bot/message_router.py",
     "src/yt_dl_bot/url_validation.py",
+    "src/yt_dl_bot/video_download_service.py",
+    "src/yt_dl_bot/youtube_highlight_service.py",
 ]
 check_untyped_defs = true
 ignore_missing_imports = true
