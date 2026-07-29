@@ -1,8 +1,9 @@
 import datetime
 from collections import deque
+from collections.abc import Iterable, Iterator, Sequence
 from logging import getLogger
 from pathlib import Path
-from typing import Iterable, Iterator, Protocol, Sequence
+from typing import Protocol
 
 import matplotlib.pyplot as plt
 from pytchat import create
