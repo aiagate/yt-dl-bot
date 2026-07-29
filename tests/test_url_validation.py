@@ -64,7 +64,7 @@ class IdentifyServiceTest(unittest.TestCase):
             "https://evil-youtube.com/watch?v=video-id",
             "https://twitch.tv.example.org/channel",
             "https://www.twitch.tv@evil.test/channel",
-            "https://youtube．com/watch?v=video-id",
+            "https://youtube．com/watch?v=video-id",  # noqa: RUF001 - spoofed host fixture
         )
 
         for url in urls:
