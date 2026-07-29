@@ -2,9 +2,10 @@
 
 import datetime
 import shutil
-from collections.abc import Mapping
+from collections.abc import Callable, Iterable, Mapping, Sequence
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Protocol, cast
 
 import yt_dlp
 from pytchat import exceptions as pytchat_exceptions
@@ -18,7 +19,7 @@ from .application_errors import (
 from .artifact_discovery import ArtifactDiscoveryError
 from .chat_highlights import ChatHighlightPipeline
 from .download_engine import DownloadOutcome
-from .download_service import DownloadWaitError
+from .download_service import DownloadWaitError, MakeDirectory
 from .external_error_adapter import error_detail, is_twitch_offline
 from .youtube_downloader import YouTubeDownloader
 from .yt_dlp_downloader import YtDlpDownloader
@@ -56,6 +57,45 @@ CHAT_PROCESSING_ERRORS = (
 )
 
 
+class Cancellation(Protocol):
+    def raise_if_cancelled(self) -> None: ...
+
+
+class DownloadAdapter(Protocol):
+    def check_availability(self, *, url: str) -> str: ...
+
+    def download_video(self, *, url: str) -> DownloadOutcome: ...
+
+    def download_video_cancellable(
+        self,
+        *,
+        url: str,
+        cancellation_token: Cancellation,
+    ) -> DownloadOutcome: ...
+
+
+class HighlightChat(Protocol):
+    image_path: Path
+
+    def get_highlight(self) -> list[list[int | str]]: ...
+
+
+class HighlightYouTubeAdapter(Protocol):
+    def get_video_id(self, *, url: str) -> str: ...
+
+    def get_info(self, *, url: str) -> Mapping[str, object]: ...
+
+
+class ApplicationSettings(Protocol):
+    GRAPH_SAVE_PATH: Path
+    SAVE_PATH: Path
+    TMP_PATH: Path
+
+
+class MoveFile(Protocol):
+    def __call__(self, source: Path, destination: Path) -> object: ...
+
+
 @dataclass(frozen=True)
 class DownloadResult:
     video_id: str
@@ -66,7 +106,7 @@ class DownloadResult:
     thumbnail_files: tuple[Path, ...]
 
     @classmethod
-    def from_outcome(cls, outcome):
+    def from_outcome(cls, outcome: object) -> "DownloadResult":
         if not isinstance(outcome, DownloadOutcome):
             raise TypeError(
                 "download adapter must return DownloadOutcome",
@@ -94,15 +134,21 @@ class TwitchStreamOffline(Exception):
     """The requested Twitch channel is not currently live."""
 
 
-def split_highlight_text(highlights, max_length=1024):
+def split_highlight_text(
+    highlights: Iterable[Sequence[int | str]],
+    max_length: int = 1024,
+) -> tuple[str, ...]:
     """Format highlight links into fields within Discord's size limit."""
     if max_length < 2:
         raise ValueError("max_length must be at least 2")
 
     field_limit = max_length - 1
-    fields = []
+    fields: list[str] = []
     current = ""
-    for seconds, url in highlights:
+    for item in highlights:
+        seconds, url = item
+        seconds = cast(int, seconds)
+        url = cast(str, url)
         line = f"{datetime.timedelta(seconds=seconds)}\t{url}\n"
         line = line[:field_limit]
         if current and len(current + line) > field_limit:
@@ -115,10 +161,10 @@ def split_highlight_text(highlights, max_length=1024):
 
 
 class VideoDownloadService:
-    def __init__(self, downloader):
+    def __init__(self, downloader: DownloadAdapter) -> None:
         self.downloader = downloader
 
-    def check(self, url):
+    def check(self, url: str) -> str:
         try:
             return self.downloader.check_availability(url=url)
         except DOWNLOAD_ADAPTER_ERRORS as error:
@@ -127,7 +173,11 @@ class VideoDownloadService:
                 original_error=error,
             ) from error
 
-    def download(self, url, cancellation_token=None):
+    def download(
+        self,
+        url: str,
+        cancellation_token: Cancellation | None = None,
+    ) -> DownloadResult:
         try:
             if cancellation_token is None:
                 outcome = self.downloader.download_video(url=url)
@@ -145,7 +195,7 @@ class VideoDownloadService:
 
 
 class TwitchDownloadService(VideoDownloadService):
-    def check(self, url):
+    def check(self, url: str) -> str:
         try:
             return self.downloader.check_availability(url=url)
         except DOWNLOAD_ADAPTER_ERRORS as error:
@@ -160,23 +210,28 @@ class TwitchDownloadService(VideoDownloadService):
 class YouTubeHighlightService:
     def __init__(
         self,
-        settings,
-        youtube,
-        chat_factory=None,
-        path_exists=Path.exists,
-        make_directory=Path.mkdir,
-        move=shutil.move,
-    ):
+        settings: ApplicationSettings,
+        youtube: HighlightYouTubeAdapter,
+        chat_factory: Callable[[str], HighlightChat] | None = None,
+        path_exists: Callable[[Path], bool] = Path.exists,
+        make_directory: MakeDirectory | None = None,
+        move: MoveFile | None = None,
+    ) -> None:
         self.settings = settings
         self.youtube = youtube
         self.chat_factory = chat_factory or (
             lambda video_id: ChatHighlightPipeline(video_id, settings=settings)
         )
         self.path_exists = path_exists
-        self.make_directory = make_directory
-        self.move = move
+        self.make_directory = make_directory or (
+            lambda path, *, parents=False, exist_ok=False: path.mkdir(
+                parents=parents,
+                exist_ok=exist_ok,
+            )
+        )
+        self.move = move or shutil.move
 
-    def create(self, url):
+    def create(self, url: str) -> HighlightResult:
         try:
             video_id = self.youtube.get_video_id(url=url)
             video_info = self.youtube.get_info(url=url)
@@ -218,6 +273,9 @@ class YouTubeHighlightService:
                 f"Unable to create highlights: {error_detail(error)}",
                 original_error=error,
             ) from error
+        title = cast(str, title)
+        channel_name = cast(str, channel_name)
+        thumbnail_url = cast(str, thumbnail_url)
         return HighlightResult(
             title=title,
             channel_name=channel_name,
@@ -226,7 +284,7 @@ class YouTubeHighlightService:
             highlight_fields=split_highlight_text(highlights),
         )
 
-    def archive_graph(self, graph_image):
+    def archive_graph(self, graph_image: Path) -> None:
         try:
             output_path = Path(self.settings.GRAPH_SAVE_PATH)
             if not self.path_exists(output_path):
@@ -250,7 +308,7 @@ class ApplicationServices:
     twitch_download: TwitchDownloadService
 
     @classmethod
-    def from_settings(cls, settings):
+    def from_settings(cls, settings: ApplicationSettings) -> "ApplicationServices":
         youtube = YouTubeDownloader(settings=settings)
         twitch = YtDlpDownloader(settings=settings)
         return cls(

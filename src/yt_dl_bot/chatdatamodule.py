@@ -3,7 +3,7 @@ from collections import deque
 from collections.abc import Iterable, Iterator, Sequence
 from logging import getLogger
 from pathlib import Path
-from typing import Protocol
+from typing import Protocol, cast
 
 import matplotlib.pyplot as plt
 from pytchat import create
@@ -11,11 +11,14 @@ from pytchat import create
 from .setting import Settings
 
 
+class HighlightSettings(Protocol):
+    TMP_PATH: Path
+
+
 class ChatSource(Protocol):
     """Source of elapsed-time values from a video's chat."""
 
-    def collect_elapsed_times(self, video_id: str) -> Iterable[str]:
-        pass
+    def collect_elapsed_times(self, video_id: str) -> Iterable[str]: ...
 
 
 class PytchatSource:
@@ -56,7 +59,7 @@ class HighlightAnalyzer:
         return None
 
     def count_comments(self, elapsed_times: Iterable[str]) -> list[int]:
-        counts = []
+        counts: list[int] = []
         for elapsed_time in elapsed_times:
             elapsed = self.elapsed_seconds(elapsed_time)
             if elapsed is None or elapsed < 0:
@@ -69,10 +72,10 @@ class HighlightAnalyzer:
 
     @staticmethod
     def count_score(comment_counts: Iterable[int]) -> list[float]:
-        score_data = []
+        score_data: list[float] = []
         average_count = deque([1000] * 8)
         for comment_count in comment_counts:
-            score = 0
+            score = 0.0
             if comment_count > 0:
                 score = comment_count / (sum(average_count) / len(average_count))
                 average_count.append(comment_count)
@@ -108,8 +111,7 @@ class GraphRenderer(Protocol):
         score_data: Sequence[float],
         bucket_seconds: int,
         image_path: Path,
-    ) -> None:
-        pass
+    ) -> None: ...
 
 
 class MatplotlibGraphRenderer:
@@ -135,8 +137,7 @@ class MatplotlibGraphRenderer:
 
 
 class Clock(Protocol):
-    def now(self) -> datetime.datetime:
-        pass
+    def now(self) -> datetime.datetime: ...
 
 
 class SystemClock:
@@ -151,15 +152,18 @@ class ChatHighlightPipeline:
 
     def __init__(
         self,
-        video_id,
-        settings=None,
+        video_id: str,
+        settings: HighlightSettings | None = None,
         *,
         chat_source: ChatSource | None = None,
         analyzer: HighlightAnalyzer | None = None,
         graph_renderer: GraphRenderer | None = None,
         clock: Clock | None = None,
-    ):
-        settings = settings or Settings()
+    ) -> None:
+        # BaseSettings fields are populated from the environment at runtime.
+        # Its generated static constructor cannot express that zero-argument use.
+        settings_factory = cast("type[HighlightSettings]", Settings)
+        settings = settings or settings_factory()
         self.logger = getLogger(__name__)
         self.video_id = video_id
         self.url = f"https://youtu.be/{video_id}"
@@ -172,34 +176,34 @@ class ChatHighlightPipeline:
         self.image_path = Path(settings.TMP_PATH) / self.image_name
 
     @staticmethod
-    def _elapsed_seconds(elapsed_time):
+    def _elapsed_seconds(elapsed_time: str) -> int | None:
         return HighlightAnalyzer.elapsed_seconds(elapsed_time)
 
-    def collect_comment_counts(self):
+    def collect_comment_counts(self) -> list[int]:
         """Return comment counts grouped into 30-second buckets."""
         elapsed_times = self.chat_source.collect_elapsed_times(self.video_id)
         return self.analyzer.count_comments(elapsed_times)
 
-    def count_score(self, comment_counts):
+    def count_score(self, comment_counts: Iterable[int]) -> list[float]:
         return self.analyzer.count_score(comment_counts)
 
-    def render_score_graph(self, score_data):
+    def render_score_graph(self, score_data: Sequence[float]) -> None:
         self.graph_renderer.render(
             score_data,
             self.analyzer.bucket_seconds,
             self.image_path,
         )
 
-    def get_peak_times(self, score_data):
+    def get_peak_times(self, score_data: Sequence[float]) -> list[int]:
         return self.analyzer.peak_times(score_data)
 
-    def get_highlight(self):
+    def get_highlight(self) -> list[list[int | str]]:
         self.logger.info("Collecting chat activity for %s", self.video_id)
         comment_counts = self.collect_comment_counts()
         score_data = self.count_score(comment_counts)
         self.render_score_graph(score_data)
 
-        highlights = []
+        highlights: list[list[int | str]] = []
         for seconds in self.get_peak_times(score_data):
             url = f"{self.url}?t={seconds}s"
             self.logger.info("Highlight: %s", url)
@@ -207,10 +211,10 @@ class ChatHighlightPipeline:
         return highlights
 
     # Compatibility wrappers for callers using the original public API.
-    def plot_peak(self, score_data):
+    def plot_peak(self, score_data: Sequence[float]) -> None:
         return self.render_score_graph(score_data)
 
-    def get_peaktime(self, score_data):
+    def get_peaktime(self, score_data: Sequence[float]) -> list[int]:
         return self.get_peak_times(score_data)
 
 

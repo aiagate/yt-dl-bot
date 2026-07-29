@@ -3,8 +3,10 @@
 import datetime
 import shutil
 import time
+from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Protocol
 
 import yt_dlp
 
@@ -20,6 +22,29 @@ from .external_error_adapter import (
     youtube_scheduled_delay,
     youtube_scheduled_notice,
 )
+
+DownloadInfo = dict[str, object]
+InfoLoader = Callable[[str], DownloadInfo]
+
+
+class Cancellation(Protocol):
+    def raise_if_cancelled(self) -> None: ...
+
+    def wait(self, timeout: float) -> None: ...
+
+
+class DownloadSettings(Protocol):
+    TMP_PATH: Path
+    SAVE_PATH: Path
+
+
+def _make_directory(
+    path: Path,
+    *,
+    parents: bool = False,
+    exist_ok: bool = False,
+) -> None:
+    path.mkdir(parents=parents, exist_ok=exist_ok)
 
 
 @dataclass(frozen=True)
@@ -43,7 +68,7 @@ class DownloadOutcome:
     artifacts: DownloadedArtifacts
 
 
-def youtube_download_policy(retry_policy=None):
+def youtube_download_policy(retry_policy: RetryPolicy | None = None) -> DownloadPolicy:
     return DownloadPolicy(
         retry_policy=retry_policy or RetryPolicy(),
         scheduled_notice=True,
@@ -54,7 +79,7 @@ def youtube_download_policy(retry_policy=None):
     )
 
 
-def generic_download_policy():
+def generic_download_policy() -> DownloadPolicy:
     return DownloadPolicy(
         retry_policy=None,
         scheduled_notice=False,
@@ -65,21 +90,21 @@ def generic_download_policy():
     )
 
 
-def default_download_dependencies(settings):
+def default_download_dependencies(settings: DownloadSettings) -> DownloadDependencies:
     return DownloadDependencies(
         ydl_factory=yt_dlp.YoutubeDL,
         now=datetime.datetime.now,
         sleep=time.sleep,
         path_exists=Path.exists,
-        make_directory=Path.mkdir,
+        make_directory=_make_directory,
         move=shutil.move,
         tmp_path=Path(settings.TMP_PATH),
         save_path=Path(settings.SAVE_PATH),
     )
 
 
-def build_output_name(info, now):
-    replacements = {
+def build_output_name(info: Mapping[str, object], now: datetime.datetime) -> str:
+    replacements: dict[str, str | int | None] = {
         "\\": "＼",
         "/": "／",
         '"': "”",
@@ -94,15 +119,15 @@ def build_output_name(info, now):
 
 
 class DownloadEngine:
-    def __init__(self, dependencies, policy):
+    def __init__(self, dependencies: DownloadDependencies, policy: DownloadPolicy) -> None:
         self.dependencies = dependencies
         self.policy = policy
 
-    def get_info(self, url):
+    def get_info(self, url: str) -> DownloadInfo:
         with self.dependencies.ydl_factory() as ydl:
             return ydl.extract_info(url, download=False)
 
-    def check_availability(self, url, info_loader=None):
+    def check_availability(self, url: str, info_loader: InfoLoader | None = None) -> str:
         info_loader = info_loader or self.get_info
         try:
             info = info_loader(url)
@@ -114,16 +139,16 @@ class DownloadEngine:
             raise
         return f"Video title : {info['title']}\nDownload start..."
 
-    def data_check(self, url, info_loader=None):
+    def data_check(self, url: str, info_loader: InfoLoader | None = None) -> str:
         """Compatibility wrapper for the former method name."""
         return self.check_availability(url, info_loader=info_loader)
 
     def download_video(
         self,
-        url,
-        info_loader=None,
-        cancellation_token=None,
-    ):
+        url: str,
+        info_loader: InfoLoader | None = None,
+        cancellation_token: Cancellation | None = None,
+    ) -> DownloadOutcome:
         self._raise_if_cancelled(cancellation_token)
         info_loader = info_loader or self.get_info
         info = self._load_download_info(
@@ -171,14 +196,19 @@ class DownloadEngine:
             artifacts=stored_artifacts,
         )
 
-    def _load_download_info(self, url, info_loader, cancellation_token):
+    def _load_download_info(
+        self,
+        url: str,
+        info_loader: InfoLoader,
+        cancellation_token: Cancellation | None,
+    ) -> DownloadInfo:
         retry_policy = self.policy.retry_policy
         if retry_policy is None:
             self._raise_if_cancelled(cancellation_token)
             return info_loader(url)
 
         attempts = 0
-        waited_seconds = 0
+        waited_seconds = 0.0
         while True:
             self._raise_if_cancelled(cancellation_token)
             attempts += 1
@@ -215,7 +245,7 @@ class DownloadEngine:
                     self.dependencies.sleep(wait_seconds)
                 waited_seconds += wait_seconds
 
-    def _move_artifacts(self, artifacts):
+    def _move_artifacts(self, artifacts: DownloadedArtifacts) -> DownloadedArtifacts:
         save_path = self.dependencies.save_path
         metadata_path = save_path / "metadata"
         thumbnail_path = save_path / "thumbnail"
@@ -252,13 +282,13 @@ class DownloadEngine:
                     f"Destination path already exists: {destination}",
                 )
 
-        completed_moves = []
+        completed_moves: list[tuple[Path, Path]] = []
         try:
             for source, destination_directory, destination in move_plan:
                 self.dependencies.move(source, destination_directory)
                 completed_moves.append((source, destination))
         except Exception as move_error:
-            rollback_errors = []
+            rollback_errors: list[Exception] = []
             for source, destination in reversed(completed_moves):
                 try:
                     self.dependencies.move(destination, source)
@@ -277,11 +307,11 @@ class DownloadEngine:
         )
 
     @staticmethod
-    def _raise_if_cancelled(cancellation_token):
+    def _raise_if_cancelled(cancellation_token: Cancellation | None) -> None:
         if cancellation_token is not None:
             cancellation_token.raise_if_cancelled()
 
-    def live_timer(self, info):
+    def live_timer(self, info: DownloadInfo | BaseException) -> float:
         if isinstance(info, dict):
             return 0
         if self.policy.retry_policy is not None:
@@ -294,8 +324,12 @@ class DownloadEngine:
                 return wait_seconds
         raise info
 
-    def build_options(self, outpath, cancellation_token=None):
-        options = {
+    def build_options(
+        self,
+        outpath: str,
+        cancellation_token: Cancellation | None = None,
+    ) -> dict[str, object]:
+        options: dict[str, object] = {
             "outtmpl": outpath,
             "format": "bestvideo+bestaudio/best",
             "merge_output_format": "mkv",
