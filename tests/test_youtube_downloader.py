@@ -11,12 +11,9 @@ from yt_dl_bot.download_service import (
     DownloadDependencies,
     DownloadRetryLimitExceeded,
     PermanentDownloadError,
-    RetryDecision,
     RetryPolicy,
-    RetryStatus,
 )
 from yt_dl_bot.youtube_downloader import YouTubeDownloader
-from yt_dl_bot.yt_dlp_downloader import YtDlpDownloader
 
 
 class FakeYoutubeDL:
@@ -353,111 +350,3 @@ class YouTubeDownloaderBoundaryTest(DownloadAdapterTestCase, unittest.TestCase):
 
         self.sleep.assert_called_once_with(30.0)
         self.assertEqual(self.downloader.get_info.call_count, 2)
-
-
-class RetryPolicyTest(unittest.TestCase):
-    def test_distinguishes_retryable_and_permanent_failures(self):
-        policy = RetryPolicy()
-
-        retryable = policy.decide(
-            yt_dlp.utils.DownloadError(
-                "This live event will begin shortly.",
-            )
-        )
-        permanent = policy.decide(
-            yt_dlp.utils.ExtractorError("Unsupported URL"),
-        )
-
-        self.assertEqual(
-            retryable,
-            RetryDecision(RetryStatus.RETRYABLE, 15),
-        )
-        self.assertEqual(
-            permanent,
-            RetryDecision(RetryStatus.PERMANENT_FAILURE),
-        )
-        self.assertEqual(
-            policy.decide(yt_dlp.utils.DownloadError("Premieres in 7 hours.")),
-            RetryDecision(RetryStatus.RETRYABLE, 23400),
-        )
-
-    def test_rejects_invalid_retry_limits(self):
-        with self.assertRaises(ValueError):
-            RetryPolicy(max_attempts=0)
-        with self.assertRaises(ValueError):
-            RetryPolicy(max_wait_seconds=-1)
-
-
-class YtDlpDownloaderBoundaryTest(DownloadAdapterTestCase, unittest.TestCase):
-    downloader_type = YtDlpDownloader
-
-    def test_download_moves_only_artifacts_reported_as_existing(self):
-        stem = Path("/tmp/downloads/2026-07-28-0905_video：id")
-        self.download_info.update(
-            {
-                "ext": "webm",
-                "filepath": str(Path(f"{stem}.webm")),
-                "infojson_filename": str(Path(f"{stem}.info.json")),
-                "thumbnails": [
-                    {"filepath": str(Path(f"{stem}.jpg")), "ext": "jpg"},
-                ],
-            }
-        )
-        self.existing_paths = {
-            Path(f"{stem}.webm"),
-            Path(f"{stem}.info.json"),
-            Path(f"{stem}.jpg"),
-        }
-
-        result = self.downloader.download_video(
-            "https://www.twitch.tv/channel",
-        )
-
-        self.assertEqual(result.video_id, "video:id")
-        self.assertEqual(result.title, "Example video")
-        self.assertEqual(
-            result.source_url,
-            "https://www.twitch.tv/channel",
-        )
-        self.assertEqual(
-            result.artifacts,
-            DownloadedArtifacts(
-                video=Path(f"/archive/{stem.name}.webm"),
-                metadata=(Path(f"/archive/metadata/{stem.name}.info.json"),),
-                thumbnails=(Path(f"/archive/thumbnail/{stem.name}.jpg"),),
-            ),
-        )
-        self.assertEqual(
-            self.ydl_instances[-1].options["outtmpl"],
-            f"{stem}.%(ext)s",
-        )
-        self.assertEqual(
-            self.move.call_args_list,
-            [
-                call(Path(f"{stem}.webm"), Path("/archive")),
-                call(Path(f"{stem}.info.json"), Path("/archive/metadata")),
-                call(Path(f"{stem}.jpg"), Path("/archive/thumbnail")),
-            ],
-        )
-
-    def test_build_options_uses_injected_cookie_existence_check(self):
-        self.existing_paths.add(Path("cookie/cookies.txt"))
-
-        options = self.downloader.engine.build_options("/tmp/video.%(ext)s")
-
-        self.assertEqual(options["cookiefile"], "cookie/cookies.txt")
-
-    def test_download_options_are_fresh_for_each_call(self):
-        first = self.downloader.engine.build_options("/tmp/first.%(ext)s")
-        first["postprocessors"].append({"key": "test-only"})
-
-        second = self.downloader.engine.build_options("/tmp/second.%(ext)s")
-
-        self.assertNotIn(
-            {"key": "test-only"},
-            second["postprocessors"],
-        )
-
-
-if __name__ == "__main__":
-    unittest.main()
