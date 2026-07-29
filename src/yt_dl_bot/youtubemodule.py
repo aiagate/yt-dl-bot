@@ -41,11 +41,10 @@ class YouTubeDownloader:
     def live_timer(self, info):
         return self.engine.live_timer(info)
 
-    def build_options(self, info, outpath):
-        del info
+    def build_options(self, outpath):
         return self.engine.build_options(outpath)
 
-    def get_videoid(self, url):
+    def get_video_id(self, url):
         return extract_youtube_video_id(url)
 
     # Compatibility wrappers for callers using the original public API.
@@ -53,7 +52,11 @@ class YouTubeDownloader:
         return self.check_availability(url)
 
     def ops(self, info, outpath):
-        return self.build_options(info, outpath)
+        del info
+        return self.build_options(outpath)
+
+    def get_videoid(self, url):
+        return self.get_video_id(url)
 
 
 # Compatibility alias. New code should use YouTubeDownloader.

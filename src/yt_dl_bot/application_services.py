@@ -178,7 +178,7 @@ class YouTubeHighlightService:
 
     def create(self, url):
         try:
-            video_id = self.youtube.get_videoid(url=url)
+            video_id = self.youtube.get_video_id(url=url)
             video_info = self.youtube.get_info(url=url)
         except YOUTUBE_METADATA_ERRORS as error:
             raise HighlightCreationError(

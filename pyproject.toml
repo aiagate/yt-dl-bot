@@ -38,10 +38,9 @@ line-length = 100
 select = ["ASYNC", "ARG", "B", "E4", "E7", "E9", "F", "I", "RUF", "UP"]
 
 [tool.ruff.lint.per-file-ignores]
-# Discord.py and compatibility facades require callback parameters that are not
-# always consumed by the implementation.
+# Discord.py requires callback parameters that are not always consumed by the
+# implementation.
 "src/yt_dl_bot/cogs/systemcog.py" = ["ARG002"]
-"src/yt_dl_bot/youtubemodule.py" = ["ARG002"]
 # Full-width punctuation is intentional in sanitized filenames and their fixtures.
 "src/yt_dl_bot/download_engine.py" = ["RUF001"]
 "tests/test_download_engine.py" = ["RUF001"]

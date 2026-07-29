@@ -1,4 +1,6 @@
 import unittest
+from inspect import signature
+from unittest.mock import Mock
 
 from yt_dl_bot.application_services import (
     YouTubeHighlightService,
@@ -34,3 +36,26 @@ class NamingCompatibilityTest(unittest.TestCase):
         for legacy_name, canonical_name in aliases:
             with self.subTest(canonical_name=canonical_name.__name__):
                 self.assertIs(legacy_name, canonical_name)
+
+    def test_youtube_legacy_methods_delegate_to_canonical_api(self):
+        downloader = object.__new__(YouTubeDownloader)
+        downloader.engine = Mock()
+        downloader.engine.build_options.return_value = {"outtmpl": "target"}
+
+        self.assertEqual(
+            tuple(signature(YouTubeDownloader.build_options).parameters),
+            ("self", "outpath"),
+        )
+        self.assertEqual(downloader.ops({"legacy": "ignored"}, "target"), {"outtmpl": "target"})
+        downloader.engine.build_options.assert_called_once_with("target")
+
+        downloader.get_video_id = Mock(return_value="video-id")
+        self.assertEqual(downloader.get_videoid("https://youtu.be/video-id"), "video-id")
+        downloader.get_video_id.assert_called_once_with("https://youtu.be/video-id")
+
+    def test_yt_dlp_legacy_video_id_method_delegates_to_canonical_api(self):
+        downloader = object.__new__(YtDlpDownloader)
+        downloader.get_video_id = Mock(return_value="video-id")
+
+        self.assertEqual(downloader.get_videoid("https://youtu.be/video-id"), "video-id")
+        downloader.get_video_id.assert_called_once_with("https://youtu.be/video-id")

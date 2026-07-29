@@ -72,9 +72,10 @@ The main implementation areas are:
 
 The former `YoutubeModule`, `YtdlpModule`, `ChatDataModule`, `MyBot`,
 `YoutubeCog`, and `YoutubeURL` names remain available as compatibility aliases.
-Likewise, the old `data_check`, `ops`, `get_peaktime`, and `plot_peak` methods
-delegate to their responsibility-revealing replacements. New integrations
-should use the names shown in the architecture diagram.
+Likewise, the old `data_check`, `ops`, `get_videoid`, `get_peaktime`, and
+`plot_peak` methods delegate to their responsibility-revealing replacements.
+New integrations should use `check_availability`, `build_options`,
+`get_video_id`, `get_peak_times`, and `render_score_graph`.
 
 ### Commands and automatic routing
 

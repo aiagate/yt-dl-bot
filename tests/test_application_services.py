@@ -201,7 +201,7 @@ class TwitchDownloadServiceTest(unittest.TestCase):
 class HighlightServiceTest(unittest.TestCase):
     def make_service(self, video_info):
         youtube = Mock()
-        youtube.get_videoid.return_value = "video-id"
+        youtube.get_video_id.return_value = "video-id"
         youtube.get_info.return_value = video_info
         chat = Mock()
         chat.image_path = "/tmp/graph.png"
@@ -214,7 +214,7 @@ class HighlightServiceTest(unittest.TestCase):
 
     def test_create_returns_discord_independent_highlight_result(self):
         youtube = Mock()
-        youtube.get_videoid.return_value = "video-id"
+        youtube.get_video_id.return_value = "video-id"
         youtube.get_info.return_value = {
             "title": "Title",
             "fulltitle": "Full title",
@@ -272,7 +272,7 @@ class HighlightServiceTest(unittest.TestCase):
     def test_highlight_external_failure_is_typed(self):
         youtube = Mock()
         failure = yt_dlp.utils.DownloadError("yt-dlp failed")
-        youtube.get_videoid.side_effect = failure
+        youtube.get_video_id.side_effect = failure
         service = YoutubeHighlightService(
             settings=SimpleNamespace(GRAPH_SAVE_PATH="/graphs/"),
             youtube=youtube,
@@ -359,7 +359,7 @@ class HighlightServiceTest(unittest.TestCase):
     def test_unexpected_highlight_failure_is_not_translated(self):
         youtube = Mock()
         failure = AttributeError("broken highlight implementation")
-        youtube.get_videoid.side_effect = failure
+        youtube.get_video_id.side_effect = failure
         service = YoutubeHighlightService(
             settings=SimpleNamespace(GRAPH_SAVE_PATH="/graphs/"),
             youtube=youtube,

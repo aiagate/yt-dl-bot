@@ -43,7 +43,7 @@ class YtDlpDownloader:
     def build_options(self, outpath):
         return self.engine.build_options(outpath)
 
-    def get_videoid(self, url):
+    def get_video_id(self, url):
         return extract_youtube_video_id(url)
 
     # Compatibility wrappers for callers using the original public API.
@@ -52,6 +52,9 @@ class YtDlpDownloader:
 
     def ops(self, outpath):
         return self.build_options(outpath)
+
+    def get_videoid(self, url):
+        return self.get_video_id(url)
 
 
 # Compatibility alias. New code should use YtDlpDownloader.
