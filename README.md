@@ -175,5 +175,5 @@ docker compose --env-file .env.example config --quiet
 
 CI enforces Ruff formatting and linting across `src/` and `tests/`,
 incremental type checking of the core boundary and pure-logic modules, and at
-least 70% branch coverage. Run `uv run ruff format src tests` to apply
+least 85% branch coverage. Run `uv run ruff format src tests` to apply
 formatting locally.
