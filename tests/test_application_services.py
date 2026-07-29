@@ -512,6 +512,74 @@ class CogDelegationTest(unittest.IsolatedAsyncioTestCase):
         bot.services.twitch_download.download.assert_not_called()
         ctx.invoke.assert_not_awaited()
 
+    async def test_twitch_cog_coordinates_successful_download(self):
+        bot = self.make_bot()
+        url = "https://www.twitch.tv/channel"
+        result = DownloadResult(
+            video_id="stream",
+            title="Example stream",
+            source_url=url,
+            video_file=Path("/archive/stream.mkv"),
+            metadata_files=(),
+            thumbnail_files=(),
+        )
+        ctx = Mock()
+        events = []
+
+        def check(check_url):
+            events.append(("check", check_url))
+            return "ready"
+
+        async def reply(message):
+            events.append(("reply", message))
+
+        async def download(function, download_url):
+            events.append(("download", function, download_url))
+            return result
+
+        def log_success(message):
+            events.append(("log", message))
+
+        async def invoke(command, **kwargs):
+            events.append(("invoke", command, kwargs))
+
+        ctx.reply = AsyncMock(side_effect=reply)
+        ctx.invoke = AsyncMock(side_effect=invoke)
+        bot.services.twitch_download.check.side_effect = check
+        bot.logger.info.side_effect = log_success
+        cog = TwitchCog(bot)
+
+        to_thread = self.to_thread_mock()
+        cancellable_download = AsyncMock(side_effect=download)
+        with (
+            patch("asyncio.to_thread", to_thread),
+            patch(
+                "yt_dl_bot.cogs.twitchcog.to_thread_cancellable",
+                cancellable_download,
+            ),
+        ):
+            await TwitchCog.download_video.callback(cog, ctx, url)
+
+        bot.services.twitch_download.check.assert_called_once_with(url)
+        cancellable_download.assert_awaited_once_with(
+            bot.services.twitch_download.download,
+            url,
+        )
+        self.assertEqual(
+            events,
+            [
+                ("check", url),
+                ("reply", "ready"),
+                ("download", bot.services.twitch_download.download, url),
+                ("log", "Download Success!"),
+                (
+                    "invoke",
+                    "send_video_output_log",
+                    {"result": result},
+                ),
+            ],
+        )
+
     async def test_youtube_cog_converts_highlight_result_to_discord_types(self):
         bot = self.make_bot()
         result = HighlightResult(
