@@ -1,4 +1,9 @@
-"""Cooperative cancellation primitives for blocking download work."""
+"""Cooperative cancellation primitives for blocking download work.
+
+Cancelling the asyncio caller signals the worker; it does not terminate the
+thread created by :func:`asyncio.to_thread`. Blocking integrations must observe
+the token at explicit boundaries before they can stop.
+"""
 
 import asyncio
 import threading
@@ -32,7 +37,11 @@ class CancellationToken:
 
 
 async def to_thread_cancellable(function, /, *args, **kwargs):
-    """Run blocking work and signal it when the asyncio caller is cancelled."""
+    """Run blocking work and signal it when the asyncio caller is cancelled.
+
+    The caller receives :class:`asyncio.CancelledError` immediately. The worker
+    thread continues until ``function`` observes ``cancellation_token``.
+    """
     token = CancellationToken()
     kwargs["cancellation_token"] = token
     try:

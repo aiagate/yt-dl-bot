@@ -6,6 +6,7 @@ from unittest.mock import Mock, call
 
 from yt_dl_bot.artifact_discovery import DownloadedArtifacts
 from yt_dl_bot.artifact_store import ArtifactStore
+from yt_dl_bot.cancellation import CancellationToken, DownloadCancelled
 
 
 def artifacts(root: Path) -> DownloadedArtifacts:
@@ -17,6 +18,52 @@ def artifacts(root: Path) -> DownloadedArtifacts:
 
 
 class ArtifactStoreTest(unittest.TestCase):
+    def test_cancellation_before_storage_prevents_all_durable_side_effects(self):
+        ensure_directory = Mock()
+        move = Mock()
+        store = ArtifactStore(
+            save_path=Path("/archive"),
+            path_exists=Mock(return_value=False),
+            ensure_directory=ensure_directory,
+            move=move,
+        )
+        token = CancellationToken()
+        token.cancel()
+
+        with self.assertRaises(DownloadCancelled):
+            store.store(
+                artifacts(Path("/tmp/downloads")),
+                cancellation_check=token.raise_if_cancelled,
+            )
+
+        ensure_directory.assert_not_called()
+        move.assert_not_called()
+
+    def test_cancellation_between_moves_stops_forward_progress_and_rolls_back(self):
+        token = CancellationToken()
+        move = Mock(side_effect=lambda *_: token.cancel())
+        store = ArtifactStore(
+            save_path=Path("/archive"),
+            path_exists=Mock(return_value=False),
+            ensure_directory=Mock(),
+            move=move,
+        )
+        downloaded = artifacts(Path("/tmp/downloads"))
+
+        with self.assertRaises(DownloadCancelled):
+            store.store(
+                downloaded,
+                cancellation_check=token.raise_if_cancelled,
+            )
+
+        self.assertEqual(
+            move.call_args_list,
+            [
+                call(downloaded.video, Path("/archive")),
+                call(Path("/archive/video.mp4"), downloaded.video),
+            ],
+        )
+
     def test_plan_uses_the_existing_directory_layout(self):
         store = ArtifactStore(
             save_path=Path("/archive"),

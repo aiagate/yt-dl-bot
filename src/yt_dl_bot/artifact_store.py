@@ -43,12 +43,26 @@ class ArtifactStore:
             move=dependencies.move,
         )
 
-    def store(self, artifacts: DownloadedArtifacts) -> DownloadedArtifacts:
-        """Store all artifacts, rolling completed moves back on failure."""
+    def store(
+        self,
+        artifacts: DownloadedArtifacts,
+        *,
+        cancellation_check: Callable[[], None] | None = None,
+    ) -> DownloadedArtifacts:
+        """Store all artifacts, rolling completed moves back on failure.
+
+        ``cancellation_check`` implements cooperative cancellation. It is called
+        before creating durable destinations and before every forward move. A
+        cancellation observed after a move has completed can therefore stop the
+        next move, but cannot interrupt the filesystem operation already in
+        progress. Rollback moves are still allowed so partially stored artifacts
+        are restored to their temporary locations.
+        """
         move_plan = self.plan(artifacts)
+        self._check_cancellation(cancellation_check)
         self._ensure_destinations()
         self._reject_collisions(move_plan)
-        self._execute(move_plan)
+        self._execute(move_plan, cancellation_check)
         return DownloadedArtifacts(
             video=move_plan[0].destination,
             metadata=tuple(move.destination for move in move_plan[1 : 1 + len(artifacts.metadata)]),
@@ -90,10 +104,15 @@ class ArtifactStore:
                     f"Destination path already exists: {move.destination}",
                 )
 
-    def _execute(self, move_plan: tuple[ArtifactMove, ...]) -> None:
+    def _execute(
+        self,
+        move_plan: tuple[ArtifactMove, ...],
+        cancellation_check: Callable[[], None] | None,
+    ) -> None:
         completed_moves: list[ArtifactMove] = []
         try:
             for planned_move in move_plan:
+                self._check_cancellation(cancellation_check)
                 self.move(planned_move.source, planned_move.destination_directory)
                 completed_moves.append(planned_move)
         except Exception as move_error:
@@ -109,3 +128,8 @@ class ArtifactStore:
                     + "; ".join(str(error) for error in rollback_errors),
                 )
             raise
+
+    @staticmethod
+    def _check_cancellation(cancellation_check: Callable[[], None] | None) -> None:
+        if cancellation_check is not None:
+            cancellation_check()
