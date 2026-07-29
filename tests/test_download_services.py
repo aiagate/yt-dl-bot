@@ -55,6 +55,7 @@ class DownloadModuleTestCase:
                 {"filepath": str(Path(f"{stem}.webp")), "ext": "webp"},
             ],
         }
+        self.downloaded_info = None
         self.ydl_instances = []
         self.existing_paths = {
             Path(f"{stem}.mp4"),
@@ -68,7 +69,12 @@ class DownloadModuleTestCase:
         self.sleep = Mock()
 
         def ydl_factory(options=None):
-            instance = FakeYoutubeDL(self.download_info, options)
+            info = (
+                self.download_info
+                if options is None or self.downloaded_info is None
+                else self.downloaded_info
+            )
+            instance = FakeYoutubeDL(info, options)
             self.ydl_instances.append(instance)
             return instance
 
@@ -174,6 +180,65 @@ class YoutubeModuleBoundaryTest(DownloadModuleTestCase, unittest.TestCase):
             result.source_url,
             "https://www.youtube.com/watch?v=video-id",
         )
+
+    def test_download_result_falls_back_when_metadata_is_missing_or_empty(self):
+        requested_url = "https://youtu.be/requested-video"
+        artifact_info = {
+            key: value
+            for key, value in self.download_info.items()
+            if key not in {"id", "title"}
+        }
+        cases = (
+            (
+                "title and original URL",
+                {
+                    "id": "video-id",
+                    "fulltitle": "",
+                    "title": "Short title",
+                    "webpage_url": "",
+                    "original_url": "https://youtube.com/watch?v=original",
+                },
+                ("video-id", "Short title", "https://youtube.com/watch?v=original"),
+            ),
+            (
+                "ID and requested URL",
+                {
+                    "id": "video-id",
+                    "fulltitle": None,
+                    "title": "",
+                    "webpage_url": None,
+                    "original_url": "",
+                },
+                ("video-id", "video-id", requested_url),
+            ),
+            (
+                "requested URL when all identifying metadata is absent",
+                {},
+                ("", requested_url, requested_url),
+            ),
+            (
+                "requested URL and empty video ID when metadata is empty",
+                {
+                    "id": "",
+                    "fulltitle": "",
+                    "title": "",
+                    "webpage_url": "",
+                    "original_url": "",
+                },
+                ("", requested_url, requested_url),
+            ),
+        )
+
+        for label, metadata, expected in cases:
+            with self.subTest(label):
+                self.downloaded_info = artifact_info | metadata
+
+                result = self.module.download_video(requested_url)
+
+                self.assertEqual(
+                    (result.video_id, result.title, result.source_url),
+                    expected,
+                )
 
     def test_trailing_slash_does_not_change_configured_paths(self):
         with_slashes = DownloadDependencies(
