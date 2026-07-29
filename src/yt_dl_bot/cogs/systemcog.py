@@ -32,7 +32,8 @@ class SystemCog(commands.Cog):
         if ctx.invoked_subcommand is None:
             await ctx.send("Error: missing option")
 
-    @botsystem.command(name="close")
+    # discord.py's Group.command typing loses the callback parameters for nested commands.
+    @botsystem.command(name="close")  # type: ignore[arg-type]
     @commands.is_owner()
     async def botsystem_close(self, ctx):
         await self.bot.get_channel(self.settings.LOG_CHANNEL).send("Bot System Will Be Shutdown...")

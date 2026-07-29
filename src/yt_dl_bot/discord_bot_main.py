@@ -1,5 +1,6 @@
 # ---standard library---
 import logging
+from collections.abc import Callable
 from logging import INFO, getLogger
 from pathlib import Path
 
@@ -16,7 +17,7 @@ LOG_DATE_FORMAT = "%Y-%m-%d %H:%M:%S"
 FILE_LOGGERS = ("discord", __name__, "yt_dl_bot.youtube_downloader")
 
 
-def configure_logging(log_path):
+def configure_logging(log_path: Path) -> logging.FileHandler:
     """Configure application file logging once and return its handler."""
     logging.basicConfig(
         level=INFO,
@@ -67,7 +68,12 @@ def configure_logging(log_path):
 
 
 class DownloadBot(commands.Bot):
-    def __init__(self, command_prefix, settings, services=None):
+    def __init__(
+        self,
+        command_prefix: str | Callable[..., str],
+        settings: Settings,
+        services: ApplicationServices | None = None,
+    ) -> None:
         # loggerを作成
         self.logger = getLogger(__name__)
         self.settings = settings
@@ -78,7 +84,7 @@ class DownloadBot(commands.Bot):
         # スーパークラスのコンストラクタに値を渡して実行。
         super().__init__(intents=discord.Intents.all(), command_prefix=command_prefix)
 
-    async def setup_hook(self):
+    async def setup_hook(self) -> None:
         # 設定されたリストからCogをロード
         for cog in self.settings.INITIAL_EXTENSIONS:
             try:
@@ -89,14 +95,18 @@ class DownloadBot(commands.Bot):
                 raise
                 # traceback.print_exc()
 
-    async def on_ready(self):
+    async def on_ready(self) -> None:
+        user = self.user
+        if user is None:
+            self.logger.warning("Discord client is ready without an authenticated user")
+            return
         self.logger.info("----------------")
-        self.logger.info(self.user.name)
-        self.logger.info(self.user.id)
+        self.logger.info(user.name)
+        self.logger.info(user.id)
         self.logger.info("----------------")
 
 
-def main(settings=None):
+def main(settings: Settings | None = None) -> None:
     settings = settings or Settings()
     configure_logging(settings.LOG_PATH)
 

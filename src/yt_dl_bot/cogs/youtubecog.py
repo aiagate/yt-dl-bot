@@ -25,7 +25,8 @@ class YouTubeCog(commands.Cog):
         if ctx.invoked_subcommand is None:
             await ctx.send("Error: missing option")
 
-    @youtube_cog.command(name="download", ignore_extra=False)
+    # discord.py's Group.command typing loses converter callback parameters.
+    @youtube_cog.command(name="download", ignore_extra=False)  # type: ignore[arg-type]
     async def download_video(self, ctx, url: YouTubeURL):
         text = await asyncio.to_thread(self.download_service.check, url)
 
@@ -53,7 +54,8 @@ class YouTubeCog(commands.Cog):
             return
         await ctx.invoke(self.bot.get_command("send_error_log"), error)
 
-    @youtube_cog.command(name="highlight", ignore_extra=False)
+    # discord.py's Group.command typing loses converter callback parameters.
+    @youtube_cog.command(name="highlight", ignore_extra=False)  # type: ignore[arg-type]
     async def get_highlight(self, ctx, url: YouTubeURL):
         await ctx.reply("Starting get highlight...")
 

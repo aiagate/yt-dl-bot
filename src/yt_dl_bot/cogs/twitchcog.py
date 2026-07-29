@@ -25,7 +25,8 @@ class TwitchCog(commands.Cog):
         if ctx.invoked_subcommand is None:
             await ctx.send("Error: missing option")
 
-    @twitch_cog.command(name="download", ignore_extra=False)
+    # discord.py's Group.command typing loses converter callback parameters.
+    @twitch_cog.command(name="download", ignore_extra=False)  # type: ignore[arg-type]
     async def download_video(self, ctx, url: TwitchURL):
         try:
             result = await asyncio.to_thread(
