@@ -194,11 +194,8 @@ coverage. Run `uv run ruff format src tests` to apply formatting locally.
 
 The mypy configuration requires complete annotations on every function,
 typed generic arguments and decorators, explicit optional types, type-safe
-returns, and strict equality checks. `warn_unreachable` remains deferred
-because defensive validation of third-party chat timestamps intentionally
-retains an unreachable fallback under the current annotations.
-`warn_unused_configs` is also deferred because mypy reports the forward-looking
-wildcard override for the untyped `yt_dlp` package as unused when only its
-top-level module happens to be imported. The narrowly scoped third-party
-missing-import overrides and discord.py decorator ignores are documented next
-to their configuration or call sites.
+returns, strict equality checks, reachable code, and actively used
+configuration sections. Values read from untyped third-party APIs remain
+`object` at their input boundary until runtime validation narrows them. The
+narrowly scoped third-party missing-import overrides and discord.py decorator
+ignores are documented next to their configuration or call sites.

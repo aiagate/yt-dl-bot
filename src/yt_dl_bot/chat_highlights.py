@@ -19,13 +19,13 @@ class HighlightSettings(Protocol):
 class ChatSource(Protocol):
     """Source of elapsed-time values from a video's chat."""
 
-    def collect_elapsed_times(self, video_id: str) -> Iterable[str]: ...
+    def collect_elapsed_times(self, video_id: str) -> Iterable[object]: ...
 
 
 class PytchatSource:
     """Read replay chat through pytchat and release it after collection."""
 
-    def collect_elapsed_times(self, video_id: str) -> Iterator[str]:
+    def collect_elapsed_times(self, video_id: str) -> Iterator[object]:
         chat = create(video_id=video_id, force_replay=True)
         try:
             while chat.is_alive():
@@ -42,7 +42,7 @@ class HighlightAnalyzer:
         self.bucket_seconds = bucket_seconds
 
     @staticmethod
-    def elapsed_seconds(elapsed_time: str) -> int | None:
+    def elapsed_seconds(elapsed_time: object) -> int | None:
         if not isinstance(elapsed_time, str):
             return None
         parts = elapsed_time.replace(",", "").split(":")
@@ -59,7 +59,7 @@ class HighlightAnalyzer:
             return values[0]
         return None
 
-    def count_comments(self, elapsed_times: Iterable[str]) -> list[int]:
+    def count_comments(self, elapsed_times: Iterable[object]) -> list[int]:
         counts: list[int] = []
         for elapsed_time in elapsed_times:
             elapsed = self.elapsed_seconds(elapsed_time)
@@ -177,7 +177,7 @@ class ChatHighlightPipeline:
         self.image_path = Path(settings.TMP_PATH) / self.image_name
 
     @staticmethod
-    def _elapsed_seconds(elapsed_time: str) -> int | None:
+    def _elapsed_seconds(elapsed_time: object) -> int | None:
         return HighlightAnalyzer.elapsed_seconds(elapsed_time)
 
     def collect_comment_counts(self) -> list[int]:
