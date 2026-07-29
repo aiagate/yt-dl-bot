@@ -3,7 +3,7 @@ import shutil
 import tempfile
 import unittest
 from pathlib import Path
-from unittest.mock import Mock
+from unittest.mock import Mock, call
 
 import yt_dlp
 
@@ -105,6 +105,45 @@ class DownloadPolicyTest(unittest.TestCase):
 
 
 class ArtifactStorageTest(unittest.TestCase):
+    def test_original_move_error_is_preserved_when_rollback_also_fails(self):
+        move_error = OSError("injected metadata move failure")
+        rollback_error = OSError("injected video rollback failure")
+        injected_dependencies = dependencies()
+        injected_dependencies.move.side_effect = [
+            None,
+            move_error,
+            rollback_error,
+        ]
+        engine = DownloadEngine(
+            injected_dependencies,
+            youtube_download_policy(),
+        )
+        video = Path("/tmp/downloads/video.mp4")
+        metadata = Path("/tmp/downloads/video.info.json")
+
+        with self.assertRaises(OSError) as raised:
+            engine._move_artifacts(
+                DownloadedArtifacts(
+                    video=video,
+                    metadata=(metadata,),
+                    thumbnails=(),
+                )
+            )
+
+        self.assertIs(raised.exception, move_error)
+        self.assertEqual(
+            raised.exception.__notes__,
+            ["Failed to roll back one or more artifact moves: injected video rollback failure"],
+        )
+        self.assertEqual(
+            injected_dependencies.move.call_args_list,
+            [
+                call(video, Path("/archive")),
+                call(metadata, Path("/archive/metadata")),
+                call(Path("/archive/video.mp4"), video),
+            ],
+        )
+
     def test_partial_move_is_rolled_back_when_later_move_fails(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
