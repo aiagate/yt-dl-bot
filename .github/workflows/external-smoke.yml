@@ -36,7 +36,7 @@ jobs:
           - ffmpeg
     env:
       YTDLP_SMOKE_URL: ${{ inputs.yt_dlp_url || vars.YTDLP_SMOKE_URL || 'https://www.w3schools.com/html/mov_bbb.mp4' }}
-      PYTCHAT_SMOKE_VIDEO_ID: ${{ inputs.pytchat_video_id || vars.PYTCHAT_SMOKE_VIDEO_ID || 'h4M5iFLKWqU' }}
+      PYTCHAT_SMOKE_VIDEO_ID: ${{ inputs.pytchat_video_id || vars.PYTCHAT_SMOKE_VIDEO_ID || '1xO3eP5HVhg' }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 

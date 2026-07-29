@@ -18,7 +18,7 @@ class ExternalSmokeValidationTest(unittest.TestCase):
             external_smoke.DEFAULT_YTDLP_URL,
             "https://www.w3schools.com/html/mov_bbb.mp4",
         )
-        self.assertEqual(external_smoke.DEFAULT_PYTCHAT_VIDEO_ID, "h4M5iFLKWqU")
+        self.assertEqual(external_smoke.DEFAULT_PYTCHAT_VIDEO_ID, "1xO3eP5HVhg")
 
     def test_metadata_requires_identity_title_and_formats(self):
         info = {"id": "video", "title": "title", "formats": [{"format_id": "one"}]}

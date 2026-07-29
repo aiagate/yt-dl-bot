@@ -15,7 +15,7 @@ from pathlib import Path
 from typing import Any
 
 DEFAULT_YTDLP_URL = "https://www.w3schools.com/html/mov_bbb.mp4"
-DEFAULT_PYTCHAT_VIDEO_ID = "h4M5iFLKWqU"
+DEFAULT_PYTCHAT_VIDEO_ID = "1xO3eP5HVhg"
 
 
 class SmokeFailure(RuntimeError):
