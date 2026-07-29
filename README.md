@@ -36,6 +36,14 @@ text, so **Message Content Intent** must be enabled under **Bot > Privileged
 Gateway Intents** in the Discord Developer Portal. No other privileged gateway
 intent is required.
 
+Complete exception tracebacks are written to the configured local log. Reports
+sent to the Discord log channel redact common structured credentials (including
+authorization and cookie headers, secret-like key/value pairs, URL user
+information and sensitive query parameters) and local absolute paths. This
+redaction reduces accidental disclosure but cannot recognize every arbitrary
+secret embedded in free-form exception text; avoid including credentials in
+exception messages.
+
 Runtime data paths default to repository-local directories. When running the
 Python application directly, override them with `SAVE_PATH`, `TMP_PATH`,
 `GRAPH_SAVE_PATH`, or `LOG_PATH`. In Compose, `DOWNLOADS_PATH` and `COOKIE_PATH`
