@@ -178,8 +178,8 @@ The Compose configuration runs the bot without an external database.
 ## Tests
 
 ```sh
-uv run ruff format --check src tests
-uv run ruff check src tests
+uv run ruff format --check src tests scripts
+uv run ruff check src tests scripts
 uv run mypy
 uv run coverage run -m unittest discover -s tests -v
 uv run coverage report
@@ -188,9 +188,42 @@ uv lock --check
 docker compose --env-file .env.example config --quiet
 ```
 
-CI enforces Ruff formatting and linting across `src/` and `tests/`, type
+CI enforces Ruff formatting and linting across `src/`, `tests/`, and `scripts/`, type
 checking of every module under `src/yt_dl_bot`, and at least 85% branch
-coverage. Run `uv run ruff format src tests` to apply formatting locally.
+coverage. Run `uv run ruff format src tests scripts` to apply formatting locally.
+
+### External integration smoke tests
+
+The non-required **External integration smoke** workflow runs every Monday at
+04:17 UTC and can also be started from the Actions tab with **Run workflow**.
+It probes three boundaries independently:
+
+- yt-dlp metadata extraction without downloading media;
+- the first batch of an archived YouTube chat replay through pytchat;
+- local ffmpeg/ffprobe execution and metadata postprocessing using a one-second
+  synthetic audio source.
+
+Each job has bounded retries and a five-minute process timeout. Reports are
+written to the GitHub step summary and retained as JSON artifacts for 14 days.
+Failures do not block pull requests because upstream availability, geo/rate
+limits, removed videos, and YouTube response changes can make these checks
+occasionally flaky. Re-run once before treating a failure as integration drift.
+
+The defaults are public test/replay videos and use no credentials. Repository
+variables `YTDLP_SMOKE_URL` and `PYTCHAT_SMOKE_VIDEO_ID` override them for
+scheduled runs; manual dispatch inputs take precedence over repository
+variables. Override targets must remain publicly accessible; this workflow
+never downloads full media.
+
+Run the deterministic ffmpeg probe locally with:
+
+```sh
+uv run python scripts/external_smoke.py ffmpeg
+```
+
+The validation helpers are covered by ordinary offline unit tests. The yt-dlp
+and pytchat probes intentionally run only in the separate scheduled/manual
+workflow, so regular CI does not depend on external media services.
 
 The mypy configuration requires complete annotations on every function,
 typed generic arguments and decorators, explicit optional types, type-safe

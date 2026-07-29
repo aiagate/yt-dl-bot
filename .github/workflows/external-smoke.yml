@@ -1,0 +1,66 @@
+name: External integration smoke
+
+on:
+  schedule:
+    # Weekly coverage is enough to detect upstream drift without creating daily traffic.
+    - cron: '17 4 * * 1'
+  workflow_dispatch:
+    inputs:
+      yt_dlp_url:
+        description: Optional public video URL for yt-dlp metadata extraction
+        required: false
+        type: string
+      pytchat_video_id:
+        description: Optional public archived livestream ID with chat replay
+        required: false
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: external-integration-smoke
+  cancel-in-progress: false
+
+jobs:
+  smoke:
+    name: ${{ matrix.stage }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    strategy:
+      fail-fast: false
+      matrix:
+        stage:
+          - yt-dlp
+          - pytchat
+          - ffmpeg
+    env:
+      YTDLP_SMOKE_URL: ${{ inputs.yt_dlp_url || vars.YTDLP_SMOKE_URL || 'https://www.youtube.com/watch?v=YE7VzlLtp-4' }}
+      PYTCHAT_SMOKE_VIDEO_ID: ${{ inputs.pytchat_video_id || vars.PYTCHAT_SMOKE_VIDEO_ID || 'h4M5iFLKWqU' }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7.6.0
+        with:
+          version: '0.11.29'
+          enable-cache: true
+
+      - name: Install locked dependencies
+        run: uv sync --locked
+
+      - name: Run bounded external probe
+        run: >-
+          timeout --signal=TERM --kill-after=15s 5m
+          uv run python scripts/external_smoke.py "${{ matrix.stage }}"
+          --yt-dlp-url "$YTDLP_SMOKE_URL"
+          --pytchat-video-id "$PYTCHAT_SMOKE_VIDEO_ID"
+          --output-dir "smoke-results/${{ matrix.stage }}"
+
+      - name: Upload smoke report
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: external-smoke-${{ matrix.stage }}-${{ github.run_attempt }}
+          path: smoke-results/
+          if-no-files-found: warn
+          retention-days: 14

@@ -14,6 +14,7 @@ source/.env.*
 __pycache__/
 .coverage
 htmlcov/
+smoke-results/
 
 venv/
 .venv/
