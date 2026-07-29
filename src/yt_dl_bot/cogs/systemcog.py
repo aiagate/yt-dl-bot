@@ -1,18 +1,27 @@
 # ---standard library---
 import asyncio
+from collections.abc import Iterable, Sequence
+from typing import TYPE_CHECKING, cast
 
 # ---third party library---
-from discord import Embed
+from discord import Embed, File, TextChannel
 from discord.ext import commands
 
+from ..application_results import DownloadResult
 from ..error_reporting import (
     format_exception_traceback,
     sanitize_discord_error_report,
     split_traceback_for_embeds,
 )
 
+if TYPE_CHECKING:
+    from ..discord_bot_main import DownloadBot
 
-def _extension_names(arguments, initial_extensions):
+
+def _extension_names(
+    arguments: Iterable[str],
+    initial_extensions: Sequence[str],
+) -> list[str]:
     """Expand ``all`` and remove duplicate extension names."""
     names = []
     for argument in arguments:
@@ -24,31 +33,37 @@ def _extension_names(arguments, initial_extensions):
 
 
 class SystemCog(commands.Cog):
-    def __init__(self, bot):
+    def __init__(self, bot: "DownloadBot") -> None:
         self.bot = bot
         self.settings = bot.settings
 
     @commands.group(name="system")
-    async def botsystem(self, ctx):
+    async def botsystem(self, ctx: commands.Context["DownloadBot"]) -> None:
         if ctx.invoked_subcommand is None:
             await ctx.send("Error: missing option")
 
     # discord.py's Group.command typing loses the callback parameters for nested commands.
     @botsystem.command(name="close")  # type: ignore[arg-type]
     @commands.is_owner()
-    async def botsystem_close(self, ctx):
-        await self.bot.get_channel(self.settings.LOG_CHANNEL).send("Bot System Will Be Shutdown...")
+    async def botsystem_close(self, ctx: commands.Context["DownloadBot"]) -> None:
+        channel = cast(TextChannel, self.bot.get_channel(self.settings.LOG_CHANNEL))
+        await channel.send("Bot System Will Be Shutdown...")
         await asyncio.sleep(3)
         await self.bot.close()
 
     @commands.group(name="cog")
-    async def cogs(self, ctx):
+    async def cogs(self, ctx: commands.Context["DownloadBot"]) -> None:
         if ctx.invoked_subcommand is None:
             await ctx.send("Error: missing option")
 
-    @cogs.group(name="reload")
+    @cogs.group(name="reload")  # type: ignore[arg-type]
     @commands.is_owner()
-    async def cogs_reload(self, ctx, *args, **kwargs):
+    async def cogs_reload(
+        self,
+        ctx: commands.Context["DownloadBot"],
+        *args: str,
+        **kwargs: object,
+    ) -> None:
         if len(args) == 0:
             await ctx.send("Error: missing cog name operand")
             return
@@ -61,12 +76,21 @@ class SystemCog(commands.Cog):
             await ctx.send("Success: " + extension + " is Reloaded.")
 
     @cogs_reload.error
-    async def cogs_reload_error(self, ctx, error):
+    async def cogs_reload_error(
+        self,
+        ctx: commands.Context["DownloadBot"],
+        error: commands.CommandError,
+    ) -> None:
         await ctx.send("Error: " + str(error))
 
-    @cogs.group(name="load")
+    @cogs.group(name="load")  # type: ignore[arg-type]
     @commands.is_owner()
-    async def cogs_load(self, ctx, *args, **kwargs):
+    async def cogs_load(
+        self,
+        ctx: commands.Context["DownloadBot"],
+        *args: str,
+        **kwargs: object,
+    ) -> None:
         if len(args) == 0:
             await ctx.send("Error: missing cog name operand")
             return
@@ -79,12 +103,21 @@ class SystemCog(commands.Cog):
             await ctx.send("Success: " + extension + " is Loaded.")
 
     @cogs_load.error
-    async def cogs_load_error(self, ctx, error):
+    async def cogs_load_error(
+        self,
+        ctx: commands.Context["DownloadBot"],
+        error: commands.CommandError,
+    ) -> None:
         await ctx.send("Error: " + str(error))
 
-    @cogs.group(name="unload")
+    @cogs.group(name="unload")  # type: ignore[arg-type]
     @commands.is_owner()
-    async def cogs_unload(self, ctx, *args, **kwargs):
+    async def cogs_unload(
+        self,
+        ctx: commands.Context["DownloadBot"],
+        *args: str,
+        **kwargs: object,
+    ) -> None:
         if len(args) == 0:
             await ctx.send("Error: missing cog name operand")
             return
@@ -109,16 +142,32 @@ class SystemCog(commands.Cog):
             await ctx.send("Success: " + extension + " is Unloaded.")
 
     @cogs_unload.error
-    async def cogs_unload_error(self, ctx, error):
+    async def cogs_unload_error(
+        self,
+        ctx: commands.Context["DownloadBot"],
+        error: commands.CommandError,
+    ) -> None:
         await ctx.send("Error: " + str(error))
 
     @commands.command(enabled=False)
-    async def send_log(self, ctx, *args, **kwargs):
-        await self.bot.get_channel(self.settings.LOG_CHANNEL).send("``" + "\n".join(args) + "``")
+    async def send_log(
+        self,
+        ctx: commands.Context["DownloadBot"],
+        *args: str,
+        **kwargs: object,
+    ) -> None:
+        channel = cast(TextChannel, self.bot.get_channel(self.settings.LOG_CHANNEL))
+        await channel.send("``" + "\n".join(args) + "``")
 
     @commands.command(enabled=False)
-    async def send_error_log(self, ctx, error, *args, **kwargs):
-        log_channel = self.bot.get_channel(self.settings.LOG_CHANNEL)
+    async def send_error_log(
+        self,
+        ctx: commands.Context["DownloadBot"],
+        error: BaseException,
+        *args: object,
+        **kwargs: object,
+    ) -> None:
+        log_channel = cast(TextChannel, self.bot.get_channel(self.settings.LOG_CHANNEL))
         error_log = format_exception_traceback(error)
 
         # Persist the complete traceback before attempting Discord I/O. This
@@ -141,19 +190,26 @@ class SystemCog(commands.Cog):
             await log_channel.send(embed=embed)
 
     @commands.command(enabled=False)
-    async def send_video_output_log(self, ctx, result):
-        await self.bot.get_channel(
-            self.settings.VIDEO_OUTPUT_CHANNEL,
-        ).send(
+    async def send_video_output_log(
+        self,
+        ctx: commands.Context["DownloadBot"],
+        result: DownloadResult,
+    ) -> None:
+        channel = cast(TextChannel, self.bot.get_channel(self.settings.VIDEO_OUTPUT_CHANNEL))
+        await channel.send(
             "**Download Success : **" + result.title + "\n" + result.source_url,
         )
 
     @commands.command(enabled=False)
-    async def send_highlight_output_log(self, ctx, file, embed):
-        await self.bot.get_channel(self.settings.HIGHLIGHT_OUTPUT_CHANNEL).send(
-            file=file, embed=embed
-        )
+    async def send_highlight_output_log(
+        self,
+        ctx: commands.Context["DownloadBot"],
+        file: File,
+        embed: Embed,
+    ) -> None:
+        channel = cast(TextChannel, self.bot.get_channel(self.settings.HIGHLIGHT_OUTPUT_CHANNEL))
+        await channel.send(file=file, embed=embed)
 
 
-async def setup(bot):
+async def setup(bot: "DownloadBot") -> None:
     await bot.add_cog(SystemCog(bot))

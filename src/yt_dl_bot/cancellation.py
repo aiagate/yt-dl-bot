@@ -7,6 +7,7 @@ the token at explicit boundaries before they can stop.
 
 import asyncio
 import threading
+from collections.abc import Callable
 
 
 class DownloadCancelled(Exception):
@@ -16,27 +17,32 @@ class DownloadCancelled(Exception):
 class CancellationToken:
     """Thread-safe cancellation signal shared with blocking workers."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self._event = threading.Event()
 
     @property
-    def cancelled(self):
+    def cancelled(self) -> bool:
         return self._event.is_set()
 
-    def cancel(self):
+    def cancel(self) -> None:
         self._event.set()
 
-    def raise_if_cancelled(self):
+    def raise_if_cancelled(self) -> None:
         if self.cancelled:
             raise DownloadCancelled("Download cancelled")
 
-    def wait(self, timeout):
+    def wait(self, timeout: float) -> None:
         """Wait for *timeout*, raising when cancellation wakes the wait."""
         if self._event.wait(timeout):
             self.raise_if_cancelled()
 
 
-async def to_thread_cancellable(function, /, *args, **kwargs):
+async def to_thread_cancellable[R](
+    function: Callable[..., R],
+    /,
+    *args: object,
+    **kwargs: object,
+) -> R:
     """Run blocking work and signal it when the asyncio caller is cancelled.
 
     The caller receives :class:`asyncio.CancelledError` immediately. The worker

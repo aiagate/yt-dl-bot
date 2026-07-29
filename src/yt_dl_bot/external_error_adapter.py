@@ -41,14 +41,14 @@ _WAIT_DURATION = re.compile(
 _TWITCH_OFFLINE = re.compile(r"\bThe channel is not currently live\b")
 
 
-def error_detail(error):
+def error_detail(error: BaseException) -> str:
     exc_info = getattr(error, "exc_info", None)
     if isinstance(exc_info, tuple) and len(exc_info) > 1:
         return str(exc_info[1])
     return str(error)
 
 
-def parse_external_error(error):
+def parse_external_error(error: BaseException) -> ExternalError:
     """Return a stable classification and a loggable reason for *error*."""
     detail = error_detail(error)
 
@@ -101,7 +101,7 @@ def parse_external_error(error):
     )
 
 
-def youtube_scheduled_notice(error):
+def youtube_scheduled_notice(error: BaseException) -> str | None:
     parsed = parse_external_error(error)
     if parsed.kind is not ExternalErrorKind.YOUTUBE_SCHEDULED:
         return None
@@ -115,12 +115,12 @@ def youtube_scheduled_notice(error):
     return None
 
 
-def youtube_scheduled_delay(error):
+def youtube_scheduled_delay(error: BaseException) -> float | None:
     parsed = parse_external_error(error)
     if not parsed.retryable:
         return None
     return parsed.wait_seconds
 
 
-def is_twitch_offline(error):
+def is_twitch_offline(error: BaseException) -> bool:
     return parse_external_error(error).kind is ExternalErrorKind.TWITCH_OFFLINE
