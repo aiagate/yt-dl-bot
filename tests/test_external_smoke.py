@@ -13,6 +13,13 @@ SPEC.loader.exec_module(external_smoke)
 
 
 class ExternalSmokeValidationTest(unittest.TestCase):
+    def test_defaults_are_credential_free_public_targets(self):
+        self.assertEqual(
+            external_smoke.DEFAULT_YTDLP_URL,
+            "https://www.w3schools.com/html/mov_bbb.mp4",
+        )
+        self.assertEqual(external_smoke.DEFAULT_PYTCHAT_VIDEO_ID, "1xO3eP5HVhg")
+
     def test_metadata_requires_identity_title_and_formats(self):
         info = {"id": "video", "title": "title", "formats": [{"format_id": "one"}]}
 
