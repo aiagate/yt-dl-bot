@@ -7,6 +7,7 @@ from discord.ext import commands
 
 from ..error_reporting import (
     format_exception_traceback,
+    sanitize_discord_error_report,
     split_traceback_for_embeds,
 )
 
@@ -123,11 +124,12 @@ class SystemCog(commands.Cog):
         # Persist the complete traceback before attempting Discord I/O. This
         # ensures a failed notification never hides the original error.
         self.bot.logger.error(error_log)
+        discord_error_log = sanitize_discord_error_report(error_log)
 
         await ctx.reply("Error: Check " + log_channel.mention)
 
         field_number = 1
-        for field_batch in split_traceback_for_embeds(error_log):
+        for field_batch in split_traceback_for_embeds(discord_error_log):
             embed = Embed()
             for field_value in field_batch:
                 embed.add_field(

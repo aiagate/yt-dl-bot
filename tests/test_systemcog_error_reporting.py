@@ -3,7 +3,11 @@ from types import SimpleNamespace
 from unittest.mock import AsyncMock, Mock
 
 from yt_dl_bot.cogs.systemcog import SystemCog
-from yt_dl_bot.error_reporting import format_exception_traceback
+from yt_dl_bot.error_reporting import (
+    REDACTED,
+    format_exception_traceback,
+    sanitize_discord_error_report,
+)
 
 
 class SendErrorLogTest(unittest.IsolatedAsyncioTestCase):
@@ -41,7 +45,10 @@ class SendErrorLogTest(unittest.IsolatedAsyncioTestCase):
             for field in embed.fields:
                 self.assertLessEqual(len(field.value), 1024)
                 sent_values.append(field.value)
-        self.assertEqual("".join(sent_values), expected_log)
+        self.assertEqual(
+            "".join(sent_values),
+            sanitize_discord_error_report(expected_log),
+        )
 
     async def test_complete_traceback_is_logged_before_notification_failure(self):
         error = self._long_exception()
@@ -53,6 +60,37 @@ class SendErrorLogTest(unittest.IsolatedAsyncioTestCase):
 
         self.bot.logger.error.assert_called_once_with(expected_log)
         self.channel.send.assert_not_awaited()
+
+    async def test_discord_report_is_redacted_but_local_log_retains_full_traceback(self):
+        secret = "super-secret-token"
+        local_path = "/home/bot/private/worker.py"
+        try:
+            raise RuntimeError(
+                f"token={secret} path={local_path} "
+                "url=https://user:pass@example.test/watch?token=query-secret&v=123"
+            )
+        except RuntimeError as error:
+            caught_error = error
+            expected_log = format_exception_traceback(error)
+
+        await SystemCog.send_error_log.callback(self.cog, self.ctx, caught_error)
+
+        self.bot.logger.error.assert_called_once_with(expected_log)
+        self.assertIn(secret, self.bot.logger.error.call_args.args[0])
+        self.assertIn(local_path, self.bot.logger.error.call_args.args[0])
+
+        discord_report = "".join(
+            field.value
+            for sent_call in self.channel.send.await_args_list
+            for field in sent_call.kwargs["embed"].fields
+        )
+        self.assertIn(REDACTED, discord_report)
+        self.assertNotIn(secret, discord_report)
+        self.assertNotIn("query-secret", discord_report)
+        self.assertNotIn("user:pass", discord_report)
+        self.assertNotIn(local_path, discord_report)
+        self.assertIn("RuntimeError", discord_report)
+        self.assertIn("worker.py", discord_report)
 
 
 if __name__ == "__main__":
