@@ -3,7 +3,7 @@ from types import SimpleNamespace
 from unittest.mock import AsyncMock
 
 from yt_dl_bot.cogs import maincog, systemcog, twitchcog, youtubecog
-from yt_dl_bot.discord_bot_main import DownloadBot
+from yt_dl_bot.discord_bot_main import DownloadBot, build_gateway_intents
 
 INITIAL_EXTENSIONS = (
     "yt_dl_bot.cogs.maincog",
@@ -11,6 +11,26 @@ INITIAL_EXTENSIONS = (
     "yt_dl_bot.cogs.youtubecog",
     "yt_dl_bot.cogs.twitchcog",
 )
+
+
+class GatewayIntentsTest(unittest.TestCase):
+    def test_enables_only_intents_required_for_commands_and_message_routing(self):
+        intents = build_gateway_intents()
+
+        self.assertTrue(intents.guilds)
+        self.assertTrue(intents.guild_messages)
+        self.assertTrue(intents.dm_messages)
+        self.assertTrue(intents.message_content)
+        self.assertEqual(
+            {name for name, enabled in intents if enabled},
+            {"guilds", "guild_messages", "dm_messages", "message_content"},
+        )
+
+    def test_disables_unneeded_privileged_intents(self):
+        intents = build_gateway_intents()
+
+        self.assertFalse(intents.members)
+        self.assertFalse(intents.presences)
 
 
 class BotLifecycleTest(unittest.IsolatedAsyncioTestCase):
