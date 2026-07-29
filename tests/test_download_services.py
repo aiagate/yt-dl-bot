@@ -184,9 +184,7 @@ class YoutubeModuleBoundaryTest(DownloadModuleTestCase, unittest.TestCase):
     def test_download_result_falls_back_when_metadata_is_missing_or_empty(self):
         requested_url = "https://youtu.be/requested-video"
         artifact_info = {
-            key: value
-            for key, value in self.download_info.items()
-            if key not in {"id", "title"}
+            key: value for key, value in self.download_info.items() if key not in {"id", "title"}
         }
         cases = (
             (
