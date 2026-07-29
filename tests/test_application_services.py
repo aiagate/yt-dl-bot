@@ -23,6 +23,7 @@ from yt_dl_bot.cancellation import CancellationToken
 from yt_dl_bot.cogs.twitchcog import TwitchCog
 from yt_dl_bot.cogs.youtubecog import YouTubeCog
 from yt_dl_bot.download_engine import DownloadOutcome
+from yt_dl_bot.highlight import Highlight
 from yt_dl_bot.video_download_service import (
     TwitchDownloadService,
     TwitchStreamOffline,
@@ -228,8 +229,8 @@ class HighlightServiceTest(unittest.TestCase):
         chat = Mock()
         chat.image_path = "/tmp/graph.png"
         chat.get_highlight.return_value = [
-            [30, "https://youtu.be/video-id?t=30s"],
-            [90, "https://youtu.be/video-id?t=90s"],
+            Highlight(30, "https://youtu.be/video-id?t=30s"),
+            Highlight(90, "https://youtu.be/video-id?t=90s"),
         ]
         service = YouTubeHighlightService(
             settings=SimpleNamespace(GRAPH_SAVE_PATH="/graphs/"),
@@ -395,7 +396,9 @@ class HighlightServiceTest(unittest.TestCase):
         )
 
     def test_highlight_text_is_split_before_field_limit(self):
-        highlights = [(index, f"https://example.test/{index}/" + ("x" * 30)) for index in range(10)]
+        highlights = [
+            Highlight(index, f"https://example.test/{index}/" + ("x" * 30)) for index in range(10)
+        ]
 
         fields = split_highlight_text(highlights, max_length=120)
 
@@ -417,7 +420,7 @@ class HighlightServiceTest(unittest.TestCase):
                 url = "x" * (line_length - len(line_prefix) - newline_length)
 
                 fields = split_highlight_text(
-                    [(1, url)],
+                    [Highlight(1, url)],
                     max_length=max_length,
                 )
 

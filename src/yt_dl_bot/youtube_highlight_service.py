@@ -1,7 +1,7 @@
 """Application service for creating and archiving YouTube highlights."""
 
 import shutil
-from collections.abc import Callable, Mapping
+from collections.abc import Callable, Mapping, Sequence
 from pathlib import Path
 from typing import Protocol, cast
 
@@ -13,6 +13,7 @@ from .application_results import HighlightResult, split_highlight_text
 from .chat_highlights import ChatHighlightPipeline
 from .download_service import MakeDirectory
 from .external_error_adapter import error_detail
+from .highlight import Highlight
 
 YOUTUBE_METADATA_ERRORS = (
     yt_dlp.utils.DownloadError,
@@ -41,7 +42,7 @@ CHAT_PROCESSING_ERRORS = (
 class HighlightChat(Protocol):
     image_path: Path
 
-    def get_highlight(self) -> list[list[int | str]]: ...
+    def get_highlight(self) -> Sequence[Highlight]: ...
 
 
 class HighlightYouTubeAdapter(Protocol):

@@ -8,6 +8,7 @@ from typing import Protocol, cast
 import matplotlib.pyplot as plt
 from pytchat import create
 
+from .highlight import Highlight
 from .setting import Settings
 
 
@@ -197,15 +198,15 @@ class ChatHighlightPipeline:
     def get_peak_times(self, score_data: Sequence[float]) -> list[int]:
         return self.analyzer.peak_times(score_data)
 
-    def get_highlight(self) -> list[list[int | str]]:
+    def get_highlight(self) -> tuple[Highlight, ...]:
         self.logger.info("Collecting chat activity for %s", self.video_id)
         comment_counts = self.collect_comment_counts()
         score_data = self.count_score(comment_counts)
         self.render_score_graph(score_data)
 
-        highlights: list[list[int | str]] = []
+        highlights: list[Highlight] = []
         for seconds in self.get_peak_times(score_data):
             url = f"{self.url}?t={seconds}s"
             self.logger.info("Highlight: %s", url)
-            highlights.append([seconds, url])
-        return highlights
+            highlights.append(Highlight(seconds=seconds, url=url))
+        return tuple(highlights)

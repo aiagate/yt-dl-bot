@@ -60,6 +60,7 @@ files = [
     "src/yt_dl_bot/download_service.py",
     "src/yt_dl_bot/error_reporting.py",
     "src/yt_dl_bot/external_error_adapter.py",
+    "src/yt_dl_bot/highlight.py",
     "src/yt_dl_bot/message_router.py",
     "src/yt_dl_bot/url_validation.py",
     "src/yt_dl_bot/video_download_service.py",
