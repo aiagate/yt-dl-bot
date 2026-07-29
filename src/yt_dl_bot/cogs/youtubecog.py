@@ -102,7 +102,3 @@ class YouTubeCog(commands.Cog):
 
 async def setup(bot):
     await bot.add_cog(YouTubeCog(bot))
-
-
-# Compatibility alias. New code should use YouTubeCog.
-YoutubeCog = YouTubeCog

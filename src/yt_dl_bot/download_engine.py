@@ -19,10 +19,7 @@ from .download_service import (
     RetryPolicy,
     RetryStatus,
 )
-from .external_error_adapter import (
-    youtube_scheduled_delay,
-    youtube_scheduled_notice,
-)
+from .external_error_adapter import youtube_scheduled_notice
 
 DownloadInfo = dict[str, object]
 InfoLoader = Callable[[str], DownloadInfo]
@@ -146,10 +143,6 @@ class DownloadEngine:
             raise
         return f"Video title : {info['title']}\nDownload start..."
 
-    def data_check(self, url: str, info_loader: InfoLoader | None = None) -> str:
-        """Compatibility wrapper for the former method name."""
-        return self.check_availability(url, info_loader=info_loader)
-
     def download_video(
         self,
         url: str,
@@ -252,27 +245,10 @@ class DownloadEngine:
                     self.dependencies.sleep(wait_seconds)
                 waited_seconds += wait_seconds
 
-    def _move_artifacts(self, artifacts: DownloadedArtifacts) -> DownloadedArtifacts:
-        """Compatibility wrapper for callers of the former helper."""
-        return self.artifact_store.store(artifacts)
-
     @staticmethod
     def _raise_if_cancelled(cancellation_token: Cancellation | None) -> None:
         if cancellation_token is not None:
             cancellation_token.raise_if_cancelled()
-
-    def live_timer(self, info: DownloadInfo | BaseException) -> float:
-        if isinstance(info, dict):
-            return 0
-        if self.policy.retry_policy is not None:
-            decision = self.policy.retry_policy.decide(info)
-            if decision.status is RetryStatus.RETRYABLE:
-                return decision.wait_seconds
-        else:
-            wait_seconds = youtube_scheduled_delay(info)
-            if wait_seconds is not None:
-                return wait_seconds
-        raise info
 
     def build_options(
         self,

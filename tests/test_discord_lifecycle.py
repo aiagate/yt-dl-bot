@@ -3,7 +3,7 @@ from types import SimpleNamespace
 from unittest.mock import AsyncMock
 
 from yt_dl_bot.cogs import maincog, systemcog, twitchcog, youtubecog
-from yt_dl_bot.discord_bot_main import MyBot
+from yt_dl_bot.discord_bot_main import DownloadBot
 
 INITIAL_EXTENSIONS = (
     "yt_dl_bot.cogs.maincog",
@@ -18,7 +18,7 @@ class BotLifecycleTest(unittest.IsolatedAsyncioTestCase):
         settings = SimpleNamespace(
             INITIAL_EXTENSIONS=INITIAL_EXTENSIONS,
         )
-        bot = MyBot(
+        bot = DownloadBot(
             command_prefix="!",
             settings=settings,
             services=SimpleNamespace(),
@@ -34,7 +34,7 @@ class BotLifecycleTest(unittest.IsolatedAsyncioTestCase):
         )
 
     async def test_ready_event_does_not_load_extensions(self):
-        bot = MyBot(
+        bot = DownloadBot(
             command_prefix="!",
             settings=SimpleNamespace(INITIAL_EXTENSIONS=()),
             services=SimpleNamespace(),
@@ -54,7 +54,7 @@ class CogSetupTest(unittest.IsolatedAsyncioTestCase):
             (maincog, maincog.MainCog),
             (systemcog, systemcog.SystemCog),
             (twitchcog, twitchcog.TwitchCog),
-            (youtubecog, youtubecog.YoutubeCog),
+            (youtubecog, youtubecog.YouTubeCog),
         )
 
         for module, cog_type in cases:

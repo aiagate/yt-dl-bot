@@ -148,7 +148,3 @@ class YouTubeHighlightService:
                 f"Unable to archive highlight graph: {error}",
                 original_error=error,
             ) from error
-
-
-# Compatibility alias. New code should use YouTubeHighlightService.
-YoutubeHighlightService = YouTubeHighlightService

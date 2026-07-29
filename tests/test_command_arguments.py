@@ -3,14 +3,14 @@ from unittest.mock import AsyncMock, Mock
 
 from discord.ext import commands
 
-from yt_dl_bot.cogs.command_arguments import TwitchURL, YoutubeURL
+from yt_dl_bot.cogs.command_arguments import TwitchURL, YouTubeURL
 from yt_dl_bot.cogs.twitchcog import TwitchCog
-from yt_dl_bot.cogs.youtubecog import YoutubeCog
+from yt_dl_bot.cogs.youtubecog import YouTubeCog
 
 
 class URLConverterTest(unittest.IsolatedAsyncioTestCase):
     async def test_youtube_converter_returns_valid_url(self):
-        converted = await YoutubeURL().convert(
+        converted = await YouTubeURL().convert(
             Mock(),
             " https://youtu.be/video ",
         )
@@ -22,7 +22,7 @@ class URLConverterTest(unittest.IsolatedAsyncioTestCase):
             commands.BadArgument,
             "Invalid youtube URL",
         ):
-            await YoutubeURL().convert(
+            await YouTubeURL().convert(
                 Mock(),
                 "https://www.twitch.tv/channel",
             )
@@ -41,8 +41,8 @@ class URLConverterTest(unittest.IsolatedAsyncioTestCase):
 class CommandArgumentDefinitionTest(unittest.TestCase):
     def test_download_commands_require_one_url_and_reject_extras(self):
         commands_to_check = (
-            YoutubeCog.download_video,
-            YoutubeCog.get_highlight,
+            YouTubeCog.download_video,
+            YouTubeCog.get_highlight,
             TwitchCog.download_video,
         )
 
@@ -53,12 +53,12 @@ class CommandArgumentDefinitionTest(unittest.TestCase):
 
     def test_url_parameter_uses_service_specific_converter(self):
         self.assertIs(
-            YoutubeCog.download_video.clean_params["url"].annotation,
-            YoutubeURL,
+            YouTubeCog.download_video.clean_params["url"].annotation,
+            YouTubeURL,
         )
         self.assertIs(
-            YoutubeCog.get_highlight.clean_params["url"].annotation,
-            YoutubeURL,
+            YouTubeCog.get_highlight.clean_params["url"].annotation,
+            YouTubeURL,
         )
         self.assertIs(
             TwitchCog.download_video.clean_params["url"].annotation,
@@ -85,10 +85,10 @@ class CommandArgumentErrorTest(unittest.IsolatedAsyncioTestCase):
         ctx.invoke.assert_not_awaited()
 
     async def test_missing_url_gets_usage_reply(self):
-        parameter = YoutubeCog.download_video.clean_params["url"]
+        parameter = YouTubeCog.download_video.clean_params["url"]
         await self.assert_user_error(
-            self.make_cog(YoutubeCog),
-            YoutubeCog.download_video_error,
+            self.make_cog(YouTubeCog),
+            YouTubeCog.download_video_error,
             commands.MissingRequiredArgument(parameter),
             "Error: URL is required. Usage: youtube download <url>",
         )
@@ -103,26 +103,26 @@ class CommandArgumentErrorTest(unittest.IsolatedAsyncioTestCase):
 
     async def test_invalid_url_gets_clear_reply(self):
         await self.assert_user_error(
-            self.make_cog(YoutubeCog),
-            YoutubeCog.get_highlight_error,
+            self.make_cog(YouTubeCog),
+            YouTubeCog.get_highlight_error,
             commands.BadArgument("Invalid youtube URL"),
             "Error: Invalid youtube URL",
         )
 
     async def test_unexpected_error_still_uses_error_log(self):
-        cog = self.make_cog(YoutubeCog)
+        cog = self.make_cog(YouTubeCog)
         ctx = Mock()
         ctx.reply = AsyncMock()
         ctx.invoke = AsyncMock()
         error = commands.CommandInvokeError(RuntimeError("failed"))
 
-        await YoutubeCog.download_video_error(cog, ctx, error)
+        await YouTubeCog.download_video_error(cog, ctx, error)
 
         ctx.reply.assert_not_awaited()
         ctx.invoke.assert_awaited_once_with("send_error_log", error)
 
 
-class AutomaticRouteCompatibilityTest(unittest.IsolatedAsyncioTestCase):
+class AutomaticRouteTest(unittest.IsolatedAsyncioTestCase):
     async def test_direct_invoke_still_accepts_routed_string_url(self):
         bot = Mock()
         bot.settings = Mock()
@@ -135,7 +135,7 @@ class AutomaticRouteCompatibilityTest(unittest.IsolatedAsyncioTestCase):
         ctx = Mock()
         ctx.reply = AsyncMock()
         ctx.invoke = AsyncMock()
-        cog = YoutubeCog(bot)
+        cog = YouTubeCog(bot)
 
         async def run(function, *args, **kwargs):
             return function(*args, **kwargs)
@@ -144,7 +144,7 @@ class AutomaticRouteCompatibilityTest(unittest.IsolatedAsyncioTestCase):
             "asyncio.to_thread",
             AsyncMock(side_effect=run),
         ):
-            await YoutubeCog.download_video.callback(
+            await YouTubeCog.download_video.callback(
                 cog,
                 ctx,
                 "https://youtu.be/video",

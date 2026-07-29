@@ -1,10 +1,6 @@
 import ast
-import inspect
 import unittest
 from pathlib import Path
-
-from yt_dl_bot.youtubemodule import YoutubeModule
-from yt_dl_bot.ytdlpmodule import YtdlpModule
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 SOURCE_PATH = PROJECT_ROOT / "src" / "yt_dl_bot"
@@ -27,18 +23,6 @@ class MutableDefaultsTest(unittest.TestCase):
                     violations.append(f"{path.name}:{node.lineno}")
 
         self.assertEqual(violations, [])
-
-    def test_legacy_service_methods_expose_only_used_arguments(self):
-        methods = (
-            YoutubeModule.data_check,
-            YtdlpModule.data_check,
-            YtdlpModule.download_video,
-        )
-
-        for method in methods:
-            with self.subTest(method=method.__qualname__):
-                parameters = tuple(inspect.signature(method).parameters)
-                self.assertEqual(parameters, ("self", "url"))
 
 
 if __name__ == "__main__":

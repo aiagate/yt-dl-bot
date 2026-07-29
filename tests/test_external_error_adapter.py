@@ -57,7 +57,7 @@ class ExternalErrorAdapterTest(unittest.TestCase):
             "no_known_external_error_pattern",
         )
 
-    def test_legacy_twitch_helper_uses_structured_classification(self):
+    def test_twitch_helper_uses_structured_classification(self):
         error = RuntimeError("The channel is not currently live")
 
         self.assertTrue(is_twitch_offline(error))

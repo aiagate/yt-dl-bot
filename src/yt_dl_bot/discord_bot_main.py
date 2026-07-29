@@ -8,12 +8,12 @@ import discord
 from discord.ext import commands
 
 # ---local library---
-from .application_services import ApplicationServices
+from .application_container import ApplicationServices
 from .setting import Settings
 
 LOG_FORMAT = "[ %(levelname)-8s] %(asctime)s | %(name)-16s %(funcName)-24s | %(message)s"
 LOG_DATE_FORMAT = "%Y-%m-%d %H:%M:%S"
-FILE_LOGGERS = ("discord", __name__, "yt_dl_bot.youtubemodule")
+FILE_LOGGERS = ("discord", __name__, "yt_dl_bot.youtube_downloader")
 
 
 def configure_logging(log_path):
@@ -94,10 +94,6 @@ class DownloadBot(commands.Bot):
         self.logger.info(self.user.name)
         self.logger.info(self.user.id)
         self.logger.info("----------------")
-
-
-# Compatibility alias. New code should use DownloadBot.
-MyBot = DownloadBot
 
 
 def main(settings=None):

@@ -15,8 +15,8 @@ from yt_dl_bot.download_service import (
     RetryPolicy,
     RetryStatus,
 )
-from yt_dl_bot.youtubemodule import YoutubeModule
-from yt_dl_bot.ytdlpmodule import YtdlpModule
+from yt_dl_bot.youtube_downloader import YouTubeDownloader
+from yt_dl_bot.yt_dlp_downloader import YtDlpDownloader
 
 
 class FakeYoutubeDL:
@@ -40,8 +40,8 @@ class FakeYoutubeDL:
         return template.replace("%(ext)s", info.get("ext", "mp4"))
 
 
-class DownloadModuleTestCase:
-    module_type = None
+class DownloadAdapterTestCase:
+    downloader_type = None
 
     def setUp(self):
         stem = Path("/tmp/downloads/2026-07-28-0905_video：id")
@@ -88,10 +88,10 @@ class DownloadModuleTestCase:
             tmp_path="/tmp/downloads",
             save_path="/archive",
         )
-        self.module = self.module_type(self.dependencies)
+        self.downloader = self.downloader_type(self.dependencies)
 
     def test_get_info_uses_injected_ytdl_without_downloading(self):
-        info = self.module.get_info("https://example.test/video")
+        info = self.downloader.get_info("https://example.test/video")
 
         self.assertEqual(info, self.download_info)
         self.assertIsNone(self.ydl_instances[0].options)
@@ -101,11 +101,11 @@ class DownloadModuleTestCase:
         )
 
 
-class YoutubeModuleBoundaryTest(DownloadModuleTestCase, unittest.TestCase):
-    module_type = YoutubeModule
+class YouTubeDownloaderBoundaryTest(DownloadAdapterTestCase, unittest.TestCase):
+    downloader_type = YouTubeDownloader
 
     def test_download_uses_injected_clock_paths_and_artifact_mover(self):
-        result = self.module.download_video("https://youtu.be/video")
+        result = self.downloader.download_video("https://youtu.be/video")
 
         self.assertEqual(
             result,
@@ -173,7 +173,7 @@ class YoutubeModuleBoundaryTest(DownloadModuleTestCase, unittest.TestCase):
             }
         )
 
-        result = self.module.download_video("https://youtu.be/video-id")
+        result = self.downloader.download_video("https://youtu.be/video-id")
 
         self.assertEqual(result.title, "Canonical full title")
         self.assertEqual(
@@ -231,7 +231,7 @@ class YoutubeModuleBoundaryTest(DownloadModuleTestCase, unittest.TestCase):
             with self.subTest(label):
                 self.downloaded_info = artifact_info | metadata
 
-                result = self.module.download_video(requested_url)
+                result = self.downloader.download_video(requested_url)
 
                 self.assertEqual(
                     (result.video_id, result.title, result.source_url),
@@ -260,10 +260,10 @@ class YoutubeModuleBoundaryTest(DownloadModuleTestCase, unittest.TestCase):
         )
 
     def test_download_options_are_fresh_for_each_call(self):
-        first = self.module.ops({}, "/tmp/first.%(ext)s")
+        first = self.downloader.engine.build_options("/tmp/first.%(ext)s")
         first["postprocessors"].append({"key": "test-only"})
 
-        second = self.module.ops({}, "/tmp/second.%(ext)s")
+        second = self.downloader.engine.build_options("/tmp/second.%(ext)s")
 
         self.assertNotIn(
             {"key": "test-only"},
@@ -274,21 +274,21 @@ class YoutubeModuleBoundaryTest(DownloadModuleTestCase, unittest.TestCase):
         error = yt_dlp.utils.DownloadError(
             "This live event will begin in 1 minutes.",
         )
-        self.module.get_info = Mock(
+        self.downloader.get_info = Mock(
             side_effect=[error, self.download_info],
         )
 
-        self.module.download_video("https://youtu.be/video")
+        self.downloader.download_video("https://youtu.be/video")
 
         self.sleep.assert_called_once_with(30.0)
-        self.assertEqual(self.module.get_info.call_count, 2)
+        self.assertEqual(self.downloader.get_info.call_count, 2)
 
     def test_permanent_download_error_fails_without_sleeping(self):
         error = yt_dlp.utils.DownloadError("Video unavailable")
-        self.module.get_info = Mock(side_effect=error)
+        self.downloader.get_info = Mock(side_effect=error)
 
         with self.assertRaises(PermanentDownloadError) as raised:
-            self.module.download_video("https://youtu.be/video")
+            self.downloader.download_video("https://youtu.be/video")
 
         self.assertIs(raised.exception.original_error, error)
         self.assertEqual(raised.exception.attempts, 1)
@@ -298,17 +298,17 @@ class YoutubeModuleBoundaryTest(DownloadModuleTestCase, unittest.TestCase):
         error = yt_dlp.utils.DownloadError(
             "This live event will begin in 1 minutes.",
         )
-        self.module = YoutubeModule(
+        self.downloader = YouTubeDownloader(
             self.dependencies,
             retry_policy=RetryPolicy(
                 max_attempts=2,
                 max_wait_seconds=3600,
             ),
         )
-        self.module.get_info = Mock(side_effect=error)
+        self.downloader.get_info = Mock(side_effect=error)
 
         with self.assertRaises(DownloadRetryLimitExceeded) as raised:
-            self.module.download_video("https://youtu.be/video")
+            self.downloader.download_video("https://youtu.be/video")
 
         self.assertEqual(raised.exception.attempts, 2)
         self.assertEqual(raised.exception.waited_seconds, 30.0)
@@ -318,17 +318,17 @@ class YoutubeModuleBoundaryTest(DownloadModuleTestCase, unittest.TestCase):
         error = yt_dlp.utils.DownloadError(
             "This live event will begin in 2 hours.",
         )
-        self.module = YoutubeModule(
+        self.downloader = YouTubeDownloader(
             self.dependencies,
             retry_policy=RetryPolicy(
                 max_attempts=10,
                 max_wait_seconds=3600,
             ),
         )
-        self.module.get_info = Mock(side_effect=error)
+        self.downloader.get_info = Mock(side_effect=error)
 
         with self.assertRaises(DownloadRetryLimitExceeded) as raised:
-            self.module.download_video("https://youtu.be/video")
+            self.downloader.download_video("https://youtu.be/video")
 
         self.assertEqual(raised.exception.attempts, 1)
         self.assertEqual(raised.exception.waited_seconds, 0)
@@ -338,28 +338,21 @@ class YoutubeModuleBoundaryTest(DownloadModuleTestCase, unittest.TestCase):
         error = yt_dlp.utils.DownloadError(
             "This live event will begin in 1 minutes.",
         )
-        self.module = YoutubeModule(
+        self.downloader = YouTubeDownloader(
             self.dependencies,
             retry_policy=RetryPolicy(
                 max_attempts=2,
                 max_wait_seconds=30,
             ),
         )
-        self.module.get_info = Mock(
+        self.downloader.get_info = Mock(
             side_effect=[error, self.download_info],
         )
 
-        self.module.download_video("https://youtu.be/video")
+        self.downloader.download_video("https://youtu.be/video")
 
         self.sleep.assert_called_once_with(30.0)
-        self.assertEqual(self.module.get_info.call_count, 2)
-
-    def test_live_timer_retains_retry_delay_compatibility(self):
-        error = yt_dlp.utils.DownloadError(
-            "Premieres in 7 hours.",
-        )
-
-        self.assertEqual(self.module.live_timer(error), 23400.0)
+        self.assertEqual(self.downloader.get_info.call_count, 2)
 
 
 class RetryPolicyTest(unittest.TestCase):
@@ -383,6 +376,10 @@ class RetryPolicyTest(unittest.TestCase):
             permanent,
             RetryDecision(RetryStatus.PERMANENT_FAILURE),
         )
+        self.assertEqual(
+            policy.decide(yt_dlp.utils.DownloadError("Premieres in 7 hours.")),
+            RetryDecision(RetryStatus.RETRYABLE, 23400),
+        )
 
     def test_rejects_invalid_retry_limits(self):
         with self.assertRaises(ValueError):
@@ -391,8 +388,8 @@ class RetryPolicyTest(unittest.TestCase):
             RetryPolicy(max_wait_seconds=-1)
 
 
-class YtdlpModuleBoundaryTest(DownloadModuleTestCase, unittest.TestCase):
-    module_type = YtdlpModule
+class YtDlpDownloaderBoundaryTest(DownloadAdapterTestCase, unittest.TestCase):
+    downloader_type = YtDlpDownloader
 
     def test_download_moves_only_artifacts_reported_as_existing(self):
         stem = Path("/tmp/downloads/2026-07-28-0905_video：id")
@@ -412,7 +409,7 @@ class YtdlpModuleBoundaryTest(DownloadModuleTestCase, unittest.TestCase):
             Path(f"{stem}.jpg"),
         }
 
-        result = self.module.download_video(
+        result = self.downloader.download_video(
             "https://www.twitch.tv/channel",
         )
 
@@ -443,18 +440,18 @@ class YtdlpModuleBoundaryTest(DownloadModuleTestCase, unittest.TestCase):
             ],
         )
 
-    def test_ops_uses_injected_cookie_existence_check(self):
+    def test_build_options_uses_injected_cookie_existence_check(self):
         self.existing_paths.add(Path("cookie/cookies.txt"))
 
-        options = self.module.ops("/tmp/video.%(ext)s")
+        options = self.downloader.engine.build_options("/tmp/video.%(ext)s")
 
         self.assertEqual(options["cookiefile"], "cookie/cookies.txt")
 
     def test_download_options_are_fresh_for_each_call(self):
-        first = self.module.ops("/tmp/first.%(ext)s")
+        first = self.downloader.engine.build_options("/tmp/first.%(ext)s")
         first["postprocessors"].append({"key": "test-only"})
 
-        second = self.module.ops("/tmp/second.%(ext)s")
+        second = self.downloader.engine.build_options("/tmp/second.%(ext)s")
 
         self.assertNotIn(
             {"key": "test-only"},
