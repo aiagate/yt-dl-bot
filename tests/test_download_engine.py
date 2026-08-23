@@ -297,6 +297,7 @@ class DownloaderStructureTest(unittest.TestCase):
             SOURCE_PATH / "youtube_downloader.py",
             SOURCE_PATH / "yt_dlp_downloader.py",
         )
+        shared_adapter = SOURCE_PATH / "download_adapter.py"
         forbidden = (
             "yt_dlp",
             "discover_download_artifacts",
@@ -309,9 +310,12 @@ class DownloaderStructureTest(unittest.TestCase):
         for path in adapter_paths:
             source = path.read_text()
             with self.subTest(path=path.name):
-                self.assertIn("DownloadEngine", source)
+                self.assertIn("EngineDownloadAdapter", source)
                 for marker in forbidden:
                     self.assertNotIn(marker, source)
+
+        shared_source = shared_adapter.read_text()
+        self.assertIn("DownloadEngine", shared_source)
 
 
 if __name__ == "__main__":
