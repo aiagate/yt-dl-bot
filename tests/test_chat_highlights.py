@@ -123,7 +123,7 @@ class ChatHighlightPipelineTest(unittest.TestCase):
             (Highlight(seconds=0, url="https://youtu.be/video-id?t=0s"),),
         )
 
-    def test_analysis_helpers_delegate_to_analyzer(self):
+    def test_peak_detection_delegates_to_analyzer(self):
         module = ChatHighlightPipeline("video-id", settings=self.settings)
 
         self.assertEqual(module.get_peak_times([0, 0, 0.5]), [30])
