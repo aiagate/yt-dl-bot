@@ -192,6 +192,19 @@ CI enforces Ruff formatting and linting across `src/`, `tests/`, and `scripts/`,
 checking of every module under `src/yt_dl_bot`, and at least 85% branch
 coverage. Run `uv run ruff format src tests scripts` to apply formatting locally.
 
+### Black-box acceptance tests
+
+The `acceptance/` directory is a deliberately narrow workspace for behavioural
+tests written without reading the implementation. Start with its
+`contracts/` directory and use only the adapters under `acceptance/support/`.
+The local `AGENTS.md` records the rules for Codex test-writing tasks.
+
+Run the acceptance suite with:
+
+```sh
+./acceptance/run-tests
+```
+
 ### External integration smoke tests
 
 The non-required **External integration smoke** workflow runs every Monday at
