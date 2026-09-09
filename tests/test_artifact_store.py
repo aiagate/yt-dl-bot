@@ -1,6 +1,8 @@
 import shutil
 import tempfile
+import threading
 import unittest
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from unittest.mock import Mock, call
 
@@ -18,6 +20,63 @@ def artifacts(root: Path) -> DownloadedArtifacts:
 
 
 class ArtifactStoreTest(unittest.TestCase):
+    def test_concurrent_store_waits_for_failed_transaction_to_roll_back(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            first, second = artifacts(root / "first"), artifacts(root / "second")
+            for request in (first, second):
+                request.video.parent.mkdir()
+                for path in (request.video, *request.metadata, *request.thumbnails):
+                    path.write_text(request.video.parent.name)
+            first_move_started = threading.Event()
+            release_first_move = threading.Event()
+            second_started = threading.Event()
+            second_checked = threading.Event()
+
+            def first_move(source, destination):
+                if source == first.video:
+                    first_move_started.set()
+                    if not release_first_move.wait(timeout=5):
+                        raise TimeoutError("test did not release first move")
+                if source == first.metadata[0]:
+                    raise OSError("metadata move failed")
+                return shutil.move(source, destination)
+
+            def second_exists(path):
+                second_checked.set()
+                return path.exists()
+
+            def store(move, exists):
+                return ArtifactStore(
+                    save_path=root / "archive",
+                    path_exists=exists,
+                    ensure_directory=lambda path: path.mkdir(parents=True, exist_ok=True),
+                    move=move,
+                )
+
+            def store_second():
+                second_started.set()
+                return store(shutil.move, second_exists).store(second)
+
+            with ThreadPoolExecutor(max_workers=2) as pool:
+                first_future = pool.submit(store(first_move, Path.exists).store, first)
+                try:
+                    self.assertTrue(first_move_started.wait(timeout=5))
+                    second_future = pool.submit(store_second)
+                    self.assertTrue(second_started.wait(timeout=5))
+                    # No collision check may run against an uncommitted transaction.
+                    self.assertFalse(second_checked.wait(timeout=0.1))
+                finally:
+                    release_first_move.set()
+                with self.assertRaisesRegex(OSError, "metadata move failed"):
+                    first_future.result(timeout=5)
+                saved = second_future.result(timeout=5)
+            self.assertTrue(second_checked.is_set())
+            for path in (saved.video, *saved.metadata, *saved.thumbnails):
+                self.assertEqual(path.read_text(), "second")
+            for path in (first.video, *first.metadata, *first.thumbnails):
+                self.assertEqual(path.read_text(), "first")
+
     def test_cancellation_before_storage_prevents_all_durable_side_effects(self):
         ensure_directory = Mock()
         move = Mock()

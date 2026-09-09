@@ -1,6 +1,7 @@
 """Transactional storage for completed download artifacts."""
 
 import shutil
+import threading
 from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
@@ -39,6 +40,11 @@ class ArtifactMovePlan:
             metadata=tuple(move.destination for move in self.metadata),
             thumbnails=tuple(move.destination for move in self.thumbnails),
         )
+
+
+# All stores in this bot process share the transaction lock: adapters may create
+# separate store instances targeting the same destination. Downloads remain parallel.
+_STORAGE_LOCK = threading.Lock()
 
 
 class ArtifactStore:
@@ -82,10 +88,11 @@ class ArtifactStore:
         are restored to their temporary locations.
         """
         move_plan = self.plan(artifacts)
-        self._check_cancellation(cancellation_check)
-        self._ensure_destinations()
-        self._reject_collisions(move_plan.moves)
-        self._execute(move_plan.moves, cancellation_check)
+        with _STORAGE_LOCK:
+            self._check_cancellation(cancellation_check)
+            self._ensure_destinations()
+            self._reject_collisions(move_plan.moves)
+            self._execute(move_plan.moves, cancellation_check)
         return move_plan.destinations
 
     def plan(self, artifacts: DownloadedArtifacts) -> ArtifactMovePlan:
