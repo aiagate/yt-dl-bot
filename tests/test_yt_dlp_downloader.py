@@ -12,7 +12,7 @@ class YtDlpDownloaderBoundaryTest(DownloadAdapterTestCase, unittest.TestCase):
     downloader_type = YtDlpDownloader
 
     def test_download_moves_only_artifacts_reported_as_existing(self):
-        stem = Path("/tmp/downloads/2026-07-28-0905_video：id")
+        stem = Path("/tmp/downloads/request-id/2026-07-28-0905_video：id")
         self.download_info.update(
             {
                 "ext": "webm",

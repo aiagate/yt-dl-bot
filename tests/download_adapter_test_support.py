@@ -1,6 +1,6 @@
 import datetime
 from pathlib import Path
-from unittest.mock import Mock
+from unittest.mock import Mock, patch
 
 from yt_dl_bot.download_primitives import DownloadDependencies
 
@@ -30,7 +30,15 @@ class DownloadAdapterTestCase:
     downloader_type = None
 
     def setUp(self):
-        stem = Path("/tmp/downloads/2026-07-28-0905_video：id")
+        request_id = patch(
+            "yt_dl_bot.download_engine.uuid.uuid4", return_value=Mock(hex="request-id")
+        )
+        request_id.start()
+        self.addCleanup(request_id.stop)
+        cleanup = patch("yt_dl_bot.download_engine.shutil.rmtree")
+        cleanup.start()
+        self.addCleanup(cleanup.stop)
+        stem = Path("/tmp/downloads/request-id/2026-07-28-0905_video：id")
         self.download_info = {
             "id": "video:id",
             "title": "Example video",

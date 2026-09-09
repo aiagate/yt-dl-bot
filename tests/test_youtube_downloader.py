@@ -48,7 +48,7 @@ class YouTubeDownloaderBoundaryTest(DownloadAdapterTestCase, unittest.TestCase):
         download = self.ydl_instances[-1]
         self.assertEqual(
             download.options["outtmpl"],
-            "/tmp/downloads/2026-07-28-0905_video：id.%(ext)s",
+            "/tmp/downloads/request-id/2026-07-28-0905_video：id.%(ext)s",
         )
         self.assertEqual(
             download.extract_calls,
@@ -58,22 +58,22 @@ class YouTubeDownloaderBoundaryTest(DownloadAdapterTestCase, unittest.TestCase):
             self.move.call_args_list,
             [
                 call(
-                    Path("/tmp/downloads/2026-07-28-0905_video：id.mp4"),
+                    Path("/tmp/downloads/request-id/2026-07-28-0905_video：id.mp4"),
                     Path("/archive"),
                 ),
                 call(
-                    Path("/tmp/downloads/2026-07-28-0905_video：id.info.json"),
+                    Path("/tmp/downloads/request-id/2026-07-28-0905_video：id.info.json"),
                     Path("/archive/metadata"),
                 ),
                 call(
-                    Path("/tmp/downloads/2026-07-28-0905_video：id.webp"),
+                    Path("/tmp/downloads/request-id/2026-07-28-0905_video：id.webp"),
                     Path("/archive/thumbnail"),
                 ),
             ],
         )
         self.mkdir.assert_has_calls(
             [
-                call(Path("/tmp/downloads"), parents=True, exist_ok=True),
+                call(Path("/tmp/downloads/request-id"), parents=True, exist_ok=False),
                 call(Path("/archive"), parents=True, exist_ok=True),
                 call(Path("/archive/metadata"), parents=True, exist_ok=True),
                 call(Path("/archive/thumbnail"), parents=True, exist_ok=True),

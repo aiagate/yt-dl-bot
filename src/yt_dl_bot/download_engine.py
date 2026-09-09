@@ -1,8 +1,10 @@
 """Shared yt-dlp download engine with explicit site policies."""
 
 import datetime
+import logging
 import shutil
 import time
+import uuid
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from pathlib import Path
@@ -158,8 +160,8 @@ class DownloadEngine:
         )
         self._raise_if_cancelled(cancellation_token)
         title = build_output_name(info, self.dependencies.now())
-        tmp_path = self.dependencies.tmp_path
-        self.dependencies.ensure_directory(tmp_path)
+        tmp_path = self.dependencies.tmp_path / uuid.uuid4().hex
+        self.dependencies.make_directory(tmp_path, parents=True, exist_ok=False)
         outpath = tmp_path / f"{title}.%(ext)s"
 
         with self.dependencies.ydl_factory(
@@ -187,6 +189,13 @@ class DownloadEngine:
                 cancellation_token.raise_if_cancelled if cancellation_token is not None else None
             ),
         )
+        # Keep failed requests intact for recovery, especially if rollback fails.
+        try:
+            shutil.rmtree(tmp_path)
+        except OSError:
+            logging.getLogger(__name__).warning(
+                "Could not remove completed download directory %s", tmp_path, exc_info=True
+            )
         return DownloadOutcome(
             video_id=str(downloaded_info.get("id") or ""),
             title=str(
