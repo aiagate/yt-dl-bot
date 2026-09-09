@@ -52,7 +52,15 @@ class MainCog(commands.Cog):
             command_name,
         )
         ctx = await self.bot.get_context(message)
-        await ctx.invoke(cog_command, route.url)
+        ctx.command = cog_command
+        # Context.invoke calls the callback directly, bypassing the normal
+        # command error dispatch. Preserve that dispatch for automatic routes.
+        try:
+            await ctx.invoke(cog_command, route.url)
+        except commands.CommandError as error:
+            await cog_command.dispatch_error(ctx, error)
+        except Exception as error:
+            await cog_command.dispatch_error(ctx, commands.CommandInvokeError(error))
 
 
 async def setup(bot: "DownloadBot") -> None:
