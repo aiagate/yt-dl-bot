@@ -22,6 +22,7 @@ jobs:
         with:
           version: '0.11.29'
           enable-cache: true
+          prune-cache: true
 
       - name: Install Python and dependencies
         run: uv sync --locked
