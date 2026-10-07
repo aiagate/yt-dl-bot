@@ -63,6 +63,14 @@ jobs:
           --pytchat-video-id "$PYTCHAT_SMOKE_VIDEO_ID"
           --output-dir "smoke-results/${{ matrix.stage }}"
 
+      - name: Diagnose failed pytchat channel lookup
+        if: failure() && matrix.stage == 'pytchat'
+        run: >-
+          timeout --signal=TERM --kill-after=5s 30s
+          uv run python scripts/external_smoke.py pytchat-channel
+          --pytchat-video-id "$PYTCHAT_SMOKE_VIDEO_ID"
+          --output-dir "smoke-results/pytchat"
+
       - name: Upload smoke report
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1

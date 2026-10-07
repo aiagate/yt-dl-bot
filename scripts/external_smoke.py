@@ -6,6 +6,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import re
 import subprocess
 import sys
 import tempfile
@@ -13,9 +14,11 @@ import time
 from collections.abc import Callable, Sequence
 from pathlib import Path
 from typing import Any
+from urllib.parse import urlsplit
 
 DEFAULT_YTDLP_URL = "https://www.w3schools.com/html/mov_bbb.mp4"
 DEFAULT_PYTCHAT_VIDEO_ID = "4xnApfWvjXs"
+CHANNEL_DIAGNOSTIC_BODY_LIMIT = 4 * 1024 * 1024
 
 
 class SmokeFailure(RuntimeError):
@@ -121,6 +124,190 @@ def smoke_pytchat(video_id: str, attempts: int) -> dict[str, object]:
     }
 
 
+def diagnose_pytchat_channel(video_id: str) -> dict[str, object]:
+    """Observe public parser inputs without publishing response or credential values."""
+    import httpx
+    from pytchat import config, util
+
+    if not re.fullmatch(r"[A-Za-z0-9_-]{11}", video_id):
+        raise SmokeFailure("channel diagnostic requires an 11-character public video ID")
+
+    def strip_credentials(request: httpx.Request) -> None:
+        for name in ("cookie", "authorization", "proxy-authorization"):
+            request.headers.pop(name, None)
+
+    responses: list[dict[str, object]] = []
+    report: dict[str, object] = {
+        "stage": "pytchat channel diagnostic",
+        "responses": responses,
+        "request_limit": 2,
+        "body_prefix_limit_bytes": CHANNEL_DIAGNOSTIC_BODY_LIMIT,
+        "deadline_target_seconds": 20,
+        "socket_timeout_seconds": 8,
+        "accept_encoding_identity": True,
+        "follows_redirects": False,
+        "uses_environment_proxy": False,
+        "environment_proxy_configured": any(
+            os.environ.get(name)
+            for name in (
+                "HTTP_PROXY",
+                "HTTPS_PROXY",
+                "ALL_PROXY",
+                "http_proxy",
+                "https_proxy",
+                "all_proxy",
+            )
+        ),
+    }
+    deadline = time.monotonic() + 20
+    endpoints = (
+        (
+            "embed",
+            f"https://www.youtube.com/embed/{video_id}",
+            config.headers,
+            util.PATTERN_CHANNEL,
+        ),
+        (
+            "mobile",
+            f"https://m.youtube.com/watch?v={video_id}",
+            config.m_headers,
+            util.PATTERN_M_CHANNEL,
+        ),
+    )
+    with httpx.Client(
+        http2=True,
+        timeout=8,
+        follow_redirects=False,
+        auth=None,
+        trust_env=False,
+        event_hooks={"request": [strip_credentials]},
+    ) as client:
+        for endpoint, url, headers, pattern in endpoints:
+            if time.monotonic() >= deadline:
+                report["outcome"] = "deadline_exceeded"
+                break
+            response_report: dict[str, object] = {"endpoint": endpoint}
+            responses.append(response_report)
+            try:
+                with client.stream(
+                    "GET", url, headers={**headers, "accept-encoding": "identity"}
+                ) as response:
+                    content_type = response.headers.get("content-type", "").split(";", 1)[0].lower()
+                    location = urlsplit(response.headers.get("location", ""))
+                    consent_redirect = location.hostname in (
+                        "consent.youtube.com",
+                        "consent.google.com",
+                    )
+                    login_redirect = location.hostname == "accounts.google.com"
+                    response_report.update(
+                        http_status=response.status_code,
+                        content_type=content_type
+                        if content_type in ("text/html", "application/json", "text/plain", "")
+                        else "other",
+                        redirects=300 <= response.status_code < 400,
+                        redirects_to_desktop_watch=location.hostname == "www.youtube.com"
+                        and location.path == "/watch",
+                        consent_redirect=consent_redirect,
+                        login_redirect=login_redirect,
+                        access_stop=False,
+                        body_bytes_received=0,
+                        body_bytes_retained=0,
+                        body_inspected=False,
+                        body_complete=False,
+                    )
+                    if (
+                        response.status_code in (401, 403, 429)
+                        or consent_redirect
+                        or login_redirect
+                    ):
+                        response_report["access_stop"] = True
+                        report["outcome"] = "access_stop"
+                        break
+                    if response.status_code >= 400:
+                        report["outcome"] = "http_error"
+                        break
+                    if response.headers.get("content-encoding", "").lower() not in ("", "identity"):
+                        response_report["unexpected_content_encoding"] = True
+                        report["outcome"] = "encoded_response_not_inspected"
+                        break
+                    if time.monotonic() >= deadline:
+                        response_report["request_error"] = "deadline_exceeded"
+                        report["outcome"] = "deadline_exceeded"
+                        break
+                    body = bytearray()
+                    complete = True
+                    response_report["body_inspected"] = True
+                    for chunk in response.iter_raw():
+                        response_report["body_bytes_received"] += len(chunk)
+                        if time.monotonic() >= deadline:
+                            response_report["request_error"] = "deadline_exceeded"
+                            complete = False
+                            break
+                        remaining = CHANNEL_DIAGNOSTIC_BODY_LIMIT - len(body)
+                        body.extend(chunk[:remaining])
+                        response_report["body_bytes_retained"] = len(body)
+                        if len(body) >= CHANNEL_DIAGNOSTIC_BODY_LIMIT:
+                            response_report["body_limit_hit"] = True
+                            complete = False
+                            break
+                    text = body.decode("utf-8", errors="replace")
+                    normalized = text.replace("\\", "").lower()
+                    features = {
+                        "unusual_traffic": "our systems have detected unusual traffic"
+                        in normalized,
+                        "captcha": "g-recaptcha" in normalized or 'id="captcha"' in normalized,
+                        "bot_confirmation": bool(
+                            re.search(r"sign in to confirm you(?:'|\u2019)re not a bot", normalized)
+                        ),
+                        "login_required": bool(
+                            re.search(r'"status"\s*:\s*"login_required"', normalized)
+                        ),
+                    }
+                    access_stop = (
+                        response.status_code in (401, 403, 429)
+                        or any(features.values())
+                        or consent_redirect
+                        or login_redirect
+                    )
+                    response_report.update(
+                        body_complete=complete,
+                        pytchat_pattern_match=bool(pattern.search(text)),
+                        plain_channel_id_match=bool(
+                            re.search(r'"channelId"\s*:\s*"UC[A-Za-z0-9_-]{22}"', text)
+                        ),
+                        channel_id_key_present="channelId" in text,
+                        player_response_present="ytInitialPlayerResponse" in text,
+                        refusal_features=features,
+                        access_stop=access_stop,
+                    )
+                    if access_stop:
+                        report["outcome"] = "access_stop"
+                        break
+                    if not complete or response.status_code >= 400:
+                        report["outcome"] = "incomplete_or_http_error"
+                        break
+                    if response_report["pytchat_pattern_match"]:
+                        report["outcome"] = "channel_pattern_found"
+                        break
+                    if endpoint == "mobile":
+                        report["outcome"] = (
+                            "redirect_not_followed"
+                            if response_report["redirects"]
+                            else "channel_pattern_absent"
+                        )
+            except Exception as exc:
+                response_report["request_error"] = (
+                    "timeout"
+                    if isinstance(exc, httpx.TimeoutException)
+                    else "transport_error"
+                    if isinstance(exc, httpx.TransportError)
+                    else "unexpected_error"
+                )
+                report["outcome"] = "request_failed"
+                break
+    return report
+
+
 def smoke_ffmpeg() -> dict[str, object]:
     with tempfile.TemporaryDirectory(prefix="yt-dl-bot-smoke-") as directory:
         output = Path(directory) / "postprocessed.m4a"
@@ -177,7 +364,7 @@ def write_report(stage: str, report: dict[str, object], output_dir: Path) -> Non
 
 def parse_args(argv: Sequence[str]) -> argparse.Namespace:
     parser = argparse.ArgumentParser()
-    parser.add_argument("stage", choices=("yt-dlp", "pytchat", "ffmpeg"))
+    parser.add_argument("stage", choices=("yt-dlp", "pytchat", "pytchat-channel", "ffmpeg"))
     parser.add_argument("--yt-dlp-url", default=DEFAULT_YTDLP_URL)
     parser.add_argument("--pytchat-video-id", default=DEFAULT_PYTCHAT_VIDEO_ID)
     parser.add_argument("--attempts", type=int, default=2)
@@ -195,9 +382,11 @@ def main(argv: Sequence[str] | None = None) -> int:
             report = smoke_ytdlp(args.yt_dlp_url, args.attempts)
         elif args.stage == "pytchat":
             report = smoke_pytchat(args.pytchat_video_id, args.attempts)
+        elif args.stage == "pytchat-channel":
+            report = diagnose_pytchat_channel(args.pytchat_video_id)
         else:
             report = smoke_ffmpeg()
-        report["status"] = "passed"
+        report["status"] = "observed" if args.stage == "pytchat-channel" else "passed"
         write_report(args.stage, report, args.output_dir)
         print(json.dumps(report, ensure_ascii=False))
         return 0
@@ -205,7 +394,9 @@ def main(argv: Sequence[str] | None = None) -> int:
         report = {
             "stage": args.stage,
             "status": "failed",
-            "error": f"{type(exc).__name__}: {exc}",
+            "error": type(exc).__name__
+            if args.stage == "pytchat-channel"
+            else f"{type(exc).__name__}: {exc}",
         }
         write_report(args.stage, report, args.output_dir)
         print(f"external smoke stage {args.stage!r} failed: {report['error']}", file=sys.stderr)
