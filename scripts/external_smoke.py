@@ -15,7 +15,7 @@ from pathlib import Path
 from typing import Any
 
 DEFAULT_YTDLP_URL = "https://www.w3schools.com/html/mov_bbb.mp4"
-DEFAULT_PYTCHAT_VIDEO_ID = "1xO3eP5HVhg"
+DEFAULT_PYTCHAT_VIDEO_ID = "4xnApfWvjXs"
 
 
 class SmokeFailure(RuntimeError):
@@ -105,8 +105,9 @@ def smoke_pytchat(video_id: str, attempts: int) -> dict[str, object]:
         chat: Any = None
         try:
             chat = pytchat.create(video_id=video_id, force_replay=True)
-            items = list(chat.get().sync_items())
-            count = require_chat_batch(chat.is_replay(), items)
+            batch = chat.get()
+            chat.raise_for_status()
+            count = require_chat_batch(chat.is_replay(), batch.items)
             return {"message_count": count}
         finally:
             if chat is not None:
