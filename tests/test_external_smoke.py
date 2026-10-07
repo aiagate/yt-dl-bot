@@ -6,6 +6,8 @@ from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import Mock, patch
 
+import httpx
+
 SCRIPT = Path(__file__).parents[1] / "scripts" / "external_smoke.py"
 SPEC = importlib.util.spec_from_file_location("external_smoke", SCRIPT)
 assert SPEC and SPEC.loader
@@ -175,3 +177,183 @@ class PytchatSmokeTest(unittest.TestCase):
         successful.get.assert_called_once_with()
         failed.terminate.assert_called_once_with()
         successful.terminate.assert_called_once_with()
+
+
+class PytchatChannelDiagnosticTest(unittest.TestCase):
+    VIDEO_ID = "4xnApfWvjXs"
+    CHANNEL_ID = "UC" + "x" * 22
+
+    def run_diagnostic(self, responses):
+        requests = []
+        original_client = httpx.Client
+
+        def handler(request):
+            requests.append(request)
+            response = responses[len(requests) - 1]
+            if isinstance(response, Exception):
+                raise response
+            return response
+
+        def client(**kwargs):
+            return original_client(transport=httpx.MockTransport(handler), **kwargs)
+
+        with patch("httpx.Client", side_effect=client):
+            report = external_smoke.diagnose_pytchat_channel(self.VIDEO_ID)
+        return report, requests
+
+    def response(self, body, status=200, **headers):
+        return httpx.Response(
+            status,
+            stream=httpx.ByteStream(body.encode()),
+            headers={"content-type": "text/html", **headers},
+        )
+
+    def test_fallback_observes_patterns_without_logging_body_or_sending_cookies(self):
+        from pytchat import config
+
+        secret = "PRIVATE_VALUE_NEVER_LOG"
+        with patch.dict(
+            config.headers,
+            {"authorization": secret, "cookie": secret, "proxy-authorization": secret},
+        ):
+            report, requests = self.run_diagnostic(
+                [
+                    self.response(secret, **{"set-cookie": f"session={secret}"}),
+                    self.response(f'{{"channelId":"{self.CHANNEL_ID}","token":"{secret}"}}'),
+                ]
+            )
+
+        self.assertEqual(len(requests), 2)
+        self.assertEqual(report["outcome"], "channel_pattern_found")
+        self.assertFalse(report["responses"][0]["pytchat_pattern_match"])
+        self.assertTrue(report["responses"][1]["pytchat_pattern_match"])
+        for request in requests:
+            self.assertEqual(request.method, "GET")
+            for header in ("cookie", "authorization", "proxy-authorization"):
+                self.assertNotIn(header, request.headers)
+        self.assertNotIn(secret, json.dumps(report))
+        self.assertNotIn(self.CHANNEL_ID, json.dumps(report))
+
+    def test_http_access_denial_stops_before_mobile_fallback(self):
+        report, requests = self.run_diagnostic([self.response("blocked", status=429)])
+
+        self.assertEqual(len(requests), 1)
+        self.assertEqual(report["outcome"], "access_stop")
+        self.assertEqual(report["responses"][0]["http_status"], 429)
+
+    def test_bot_warning_stops_even_with_http_success(self):
+        report, requests = self.run_diagnostic(
+            [self.response("Sign in to confirm you're not a bot")]
+        )
+
+        self.assertEqual(len(requests), 1)
+        self.assertEqual(report["outcome"], "access_stop")
+        self.assertTrue(report["responses"][0]["refusal_features"]["bot_confirmation"])
+
+    def test_consent_redirect_stops_without_following_or_logging_location(self):
+        report, requests = self.run_diagnostic(
+            [self.response("", status=302, location="https://consent.youtube.com/m?token=SECRET")]
+        )
+
+        self.assertEqual(len(requests), 1)
+        self.assertEqual(report["outcome"], "access_stop")
+        self.assertTrue(report["responses"][0]["consent_redirect"])
+        self.assertNotIn("SECRET", json.dumps(report))
+
+    def test_mobile_desktop_redirect_is_classified_and_not_followed(self):
+        report, requests = self.run_diagnostic(
+            [
+                self.response(f'{{"channelId":"{self.CHANNEL_ID}"}}'),
+                self.response("", status=302, location="https://www.youtube.com/watch?v=SECRET"),
+            ]
+        )
+
+        self.assertEqual(len(requests), 2)
+        self.assertTrue(report["responses"][0]["plain_channel_id_match"])
+        self.assertFalse(report["responses"][0]["pytchat_pattern_match"])
+        self.assertEqual(report["outcome"], "redirect_not_followed")
+        self.assertTrue(report["responses"][1]["redirects_to_desktop_watch"])
+        self.assertNotIn("SECRET", json.dumps(report))
+
+    def test_oversized_body_stops_and_reports_only_bounded_prefix_length(self):
+        report, requests = self.run_diagnostic(
+            [self.response("x" * (external_smoke.CHANNEL_DIAGNOSTIC_BODY_LIMIT + 1))]
+        )
+
+        self.assertEqual(len(requests), 1)
+        observed = report["responses"][0]
+        self.assertEqual(
+            observed["body_bytes_retained"], external_smoke.CHANNEL_DIAGNOSTIC_BODY_LIMIT
+        )
+        self.assertEqual(
+            observed["body_bytes_received"], external_smoke.CHANNEL_DIAGNOSTIC_BODY_LIMIT + 1
+        )
+        self.assertTrue(observed["body_limit_hit"])
+        self.assertFalse(observed["body_complete"])
+        self.assertEqual(report["outcome"], "incomplete_or_http_error")
+
+    def test_known_denial_and_compression_are_stopped_before_body_read(self):
+        class UnreadableStream(httpx.SyncByteStream):
+            def __iter__(self):
+                raise AssertionError("body must not be read")
+
+        for status, headers, outcome in (
+            (403, {}, "access_stop"),
+            (200, {"content-encoding": "gzip"}, "encoded_response_not_inspected"),
+        ):
+            with self.subTest(status=status):
+                report, requests = self.run_diagnostic(
+                    [httpx.Response(status, headers=headers, stream=UnreadableStream())]
+                )
+                self.assertEqual(len(requests), 1)
+                self.assertEqual(report["outcome"], outcome)
+                self.assertEqual(report["responses"][0]["body_bytes_received"], 0)
+                self.assertFalse(report["responses"][0]["body_inspected"])
+
+    def test_reaching_prefix_limit_stops_before_fetching_next_chunk(self):
+        class LimitedStream(httpx.SyncByteStream):
+            def __iter__(self):
+                yield b"x" * external_smoke.CHANNEL_DIAGNOSTIC_BODY_LIMIT
+                raise AssertionError("must stop before next chunk")
+
+        report, requests = self.run_diagnostic([httpx.Response(200, stream=LimitedStream())])
+
+        self.assertEqual(len(requests), 1)
+        self.assertEqual(report["outcome"], "incomplete_or_http_error")
+        self.assertEqual(
+            report["responses"][0]["body_bytes_received"],
+            external_smoke.CHANNEL_DIAGNOSTIC_BODY_LIMIT,
+        )
+
+    def test_small_slow_chunks_reach_deadline_without_internal_buffering(self):
+        clock = [0]
+
+        class SlowStream(httpx.SyncByteStream):
+            def __iter__(self):
+                for _ in range(30):
+                    clock[0] += 7
+                    yield b"x"
+
+        with patch.object(external_smoke.time, "monotonic", side_effect=lambda: clock[0]):
+            report, requests = self.run_diagnostic([httpx.Response(200, stream=SlowStream())])
+
+        self.assertEqual(len(requests), 1)
+        self.assertEqual(clock[0], 21)
+        self.assertEqual(report["responses"][0]["body_bytes_received"], 3)
+        self.assertEqual(report["responses"][0]["request_error"], "deadline_exceeded")
+
+    def test_transport_exception_values_are_not_published(self):
+        report, requests = self.run_diagnostic([httpx.ReadTimeout("token=SECRET")])
+
+        self.assertEqual(len(requests), 1)
+        self.assertEqual(report["responses"][0]["request_error"], "timeout")
+        self.assertNotIn("SECRET", json.dumps(report))
+
+    @patch.object(external_smoke, "write_report")
+    @patch.object(external_smoke, "diagnose_pytchat_channel")
+    def test_diagnostic_completion_is_observed_and_not_smoke_pass(self, diagnose, write):
+        diagnose.return_value = {"outcome": "access_stop"}
+
+        self.assertEqual(external_smoke.main(["pytchat-channel"]), 0)
+
+        self.assertEqual(write.call_args.args[1]["status"], "observed")
