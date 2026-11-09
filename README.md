@@ -26,6 +26,9 @@ uv sync --locked
 cp .env.example .env
 ```
 
+`.env.example` には必須項目と、コメントアウトされた任意項目の既定値があります。uv 起動と
+Compose のどちらも同じ `.env` を読みます。
+
 `.env` は Git の管理対象外です。`DISCORD_KEY`（bot トークン）を含むため、
 コミットしないでください。インストール済みパッケージは次のコマンドで起動できます。
 
@@ -53,8 +56,10 @@ uv run yt-dl-bot
 | `SAVE_PATH` | いいえ | 動画・メタデータ・サムネイルの保存先（`downloads`） |
 | `TMP_PATH` | いいえ | yt-dlp の一時ファイル置き場（`downloads/cache`） |
 | `LOG_PATH` | いいえ | ログディレクトリ（`logs`） |
+| `INITIAL_EXTENSIONS` | いいえ | 起動時に読み込む Cog の JSON 配列（既定は `maincog` と `systemcog`） |
 
-`INITIAL_EXTENSIONS` を指定すると、起動時に読み込む Cog の一覧も変更できます。
+`INITIAL_EXTENSIONS` は JSON 配列で指定します（例:
+`INITIAL_EXTENSIONS=["yt_dl_bot.cogs.maincog","yt_dl_bot.cogs.systemcog"]`）。
 通常は `setting.py` の `DEFAULT_INITIAL_EXTENSIONS` を利用してください。
 
 Discord 側では **Bot > Privileged Gateway Intents** の **Message Content Intent** を
@@ -70,16 +75,17 @@ Discord のログチャンネルへ送信する報告では、認証情報・Coo
 
 ### Compose 専用の変数
 
-`compose.yaml` では、アプリケーションのパス設定をコンテナへ渡すのではなく、ホストの
-ディレクトリをコンテナ内の既定パスへマウントします。
+`compose.yaml` は、ホストのディレクトリをコンテナ内の既定パスへマウントするために、
+次の Compose 専用変数を使用します。これらはアプリケーションの `Settings` 項目では
+ありません。
 
 | 変数 | コンテナ内のマウント先 | 既定のホスト側パス |
 | --- | --- | --- |
 | `DOWNLOADS_PATH` | `/app/downloads` | `./downloads` |
 | `COOKIE_PATH` | `/app/cookie`（読み取り専用） | `./cookie` |
 
-したがって、`DOWNLOADS_PATH` と `COOKIE_PATH` は Python を直接起動したときの
-`Settings` の項目ではありません。Twitch のダウンロードで Cookie を使う場合は、
+`DOWNLOADS_PATH` と `COOKIE_PATH` は Compose がマウント設定にだけ使用し、アプリケーション
+自身は読みません。Twitch のダウンロードで Cookie を使う場合は、
 直接起動でも Compose でも `cookie/cookies.txt` が存在すると自動的に読み込まれます。
 Compose ではホストの `${COOKIE_PATH}/cookies.txt` が `/app/cookie/cookies.txt` に
 対応します。Cookie ファイルは秘密情報として扱ってください。
@@ -205,11 +211,26 @@ docker compose config --quiet
 docker compose up -d
 ```
 
+Compose も `.env` を読み、アプリケーションの `Settings` と同じ名前の値を受け取ります。
+`DISCORD_KEY`、`LOG_CHANNEL`、`VIDEO_OUTPUT_CHANNEL`、`DOWNLOAD_CHANNEL` に加えて、
+`SAVE_PATH`、`TMP_PATH`、`LOG_PATH`、`INITIAL_EXTENSIONS` を指定できます。既定値と
+相対パスの解決基準は uv 起動時と同じで、コンテナ内では `/app` がカレントディレクトリに
+なります。任意項目の既定値は未設定時にだけ使われ、空文字を指定した場合はそのまま
+アプリケーションへ渡されます。
+
 Compose は次のマウントを行います。
 
 - `DOWNLOADS_PATH` -> `/app/downloads`（動画、メタデータ、サムネイル）
 - `COOKIE_PATH` -> `/app/cookie`（読み取り専用）
 - `./logs` -> `/app/logs`（アプリケーションログ）
+
+`SAVE_PATH`、`TMP_PATH`、`LOG_PATH` はコンテナ内のパスです。既定値はそれぞれ
+`/app/downloads`、`/app/downloads/cache`、`/app/logs` に対応します。ホスト側の保存先を
+変える場合は `DOWNLOADS_PATH` を変更してください。`SAVE_PATH` などを変更する場合は、
+そのパスに対応するボリュームも追加する必要があります。
+
+uv 起動と Compose で同じ `.env` を共有する場合は、`SAVE_PATH`、`TMP_PATH`、`LOG_PATH` を
+相対パスのままにしてください。ホスト側の保存先は `DOWNLOADS_PATH` で変更します。
 
 コンテナは外部データベースなしで bot を実行します。ホスト側のディレクトリを変更した
 場合でも、アプリケーション内のパスは `/app/downloads`、`/app/cookie`、`/app/logs` の
