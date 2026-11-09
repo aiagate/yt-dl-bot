@@ -10,14 +10,7 @@ class MessageAction(Enum):
     IGNORE = "ignore"
     COMMAND = "command"
     YOUTUBE_DOWNLOAD = "youtube download"
-    YOUTUBE_HIGHLIGHT = "youtube highlight"
     TWITCH_DOWNLOAD = "twitch download"
-
-    @property
-    def command_name(self) -> str | None:
-        if self in {self.IGNORE, self.COMMAND}:
-            return None
-        return str(self.value)
 
 
 @dataclass(frozen=True)
@@ -30,7 +23,6 @@ class MessageRoute:
 class MessageRouter:
     command_prefix: str | tuple[str, ...]
     download_channel: int
-    highlight_channel: int
 
     def route(
         self,
@@ -53,8 +45,6 @@ class MessageRouter:
         url = content.strip()
         service = identify_service(url)
         if service == "youtube":
-            if channel_id == self.highlight_channel:
-                return MessageRoute(MessageAction.YOUTUBE_HIGHLIGHT, url)
             if channel_id == self.download_channel:
                 return MessageRoute(MessageAction.YOUTUBE_DOWNLOAD, url)
         if service == "twitch" and channel_id == self.download_channel:

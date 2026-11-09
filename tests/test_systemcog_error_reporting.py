@@ -2,7 +2,6 @@ import unittest
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, Mock
 
-from yt_dl_bot.cogs.systemcog import SystemCog
 from yt_dl_bot.discord_notification_delivery import DiscordNotificationDelivery
 from yt_dl_bot.error_reporting import (
     REDACTED,
@@ -20,11 +19,8 @@ class SendErrorLogTest(unittest.IsolatedAsyncioTestCase):
             logger=Mock(),
         )
         self.bot.get_channel.return_value = self.channel
-        self.cog = SystemCog(self.bot)
+        self.delivery = DiscordNotificationDelivery(self.bot)
         self.ctx = Mock(reply=AsyncMock())
-
-    def test_system_cog_uses_typed_notification_delivery(self):
-        self.assertIsInstance(self.cog.notifications, DiscordNotificationDelivery)
 
     @staticmethod
     def _long_exception():
@@ -37,7 +33,7 @@ class SendErrorLogTest(unittest.IsolatedAsyncioTestCase):
         error = self._long_exception()
         expected_log = format_exception_traceback(error)
 
-        await SystemCog.send_error_log.callback(self.cog, self.ctx, error)
+        await self.delivery.report_error(self.ctx, error)
 
         self.bot.logger.error.assert_called_once_with(expected_log)
         self.assertGreater(self.channel.send.await_count, 1)
@@ -60,7 +56,7 @@ class SendErrorLogTest(unittest.IsolatedAsyncioTestCase):
         self.ctx.reply.side_effect = RuntimeError("Discord unavailable")
 
         with self.assertRaisesRegex(RuntimeError, "Discord unavailable"):
-            await SystemCog.send_error_log.callback(self.cog, self.ctx, error)
+            await self.delivery.report_error(self.ctx, error)
 
         self.bot.logger.error.assert_called_once_with(expected_log)
         self.channel.send.assert_not_awaited()
@@ -77,7 +73,7 @@ class SendErrorLogTest(unittest.IsolatedAsyncioTestCase):
             caught_error = error
             expected_log = format_exception_traceback(error)
 
-        await SystemCog.send_error_log.callback(self.cog, self.ctx, caught_error)
+        await self.delivery.report_error(self.ctx, caught_error)
 
         self.bot.logger.error.assert_called_once_with(expected_log)
         self.assertIn(secret, self.bot.logger.error.call_args.args[0])

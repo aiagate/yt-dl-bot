@@ -7,12 +7,11 @@ from discord.ext import commands
 
 from yt_dl_bot.application_results import DownloadResult
 from yt_dl_bot.cogs.systemcog import SystemCog
+from yt_dl_bot.discord_notification_delivery import DiscordNotificationDelivery
 
 INITIAL_EXTENSIONS = (
     "yt_dl_bot.cogs.maincog",
     "yt_dl_bot.cogs.systemcog",
-    "yt_dl_bot.cogs.youtubecog",
-    "yt_dl_bot.cogs.twitchcog",
 )
 
 
@@ -61,7 +60,6 @@ class ExtensionCommandsTest(unittest.IsolatedAsyncioTestCase):
             INITIAL_EXTENSIONS=INITIAL_EXTENSIONS,
             LOG_CHANNEL=1,
             VIDEO_OUTPUT_CHANNEL=2,
-            HIGHLIGHT_OUTPUT_CHANNEL=3,
         )
         self.cog = SystemCog(self.bot)
         self.ctx = Mock()
@@ -96,11 +94,7 @@ class ExtensionCommandsTest(unittest.IsolatedAsyncioTestCase):
             thumbnail_files=(),
         )
 
-        await SystemCog.send_video_output_log.callback(
-            self.cog,
-            self.ctx,
-            result,
-        )
+        await DiscordNotificationDelivery(self.bot).send_download_result(result)
 
         channel.send.assert_awaited_once_with(
             "**Download Success : **Example video\nhttps://youtu.be/video-id",

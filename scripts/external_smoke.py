@@ -12,10 +12,8 @@ import tempfile
 import time
 from collections.abc import Callable, Sequence
 from pathlib import Path
-from typing import Any
 
 DEFAULT_YTDLP_URL = "https://www.w3schools.com/html/mov_bbb.mp4"
-DEFAULT_PYTCHAT_VIDEO_ID = "1xO3eP5HVhg"
 
 
 class SmokeFailure(RuntimeError):
@@ -34,14 +32,6 @@ def require_metadata(info: object, expected_id: str | None = None) -> dict[str, 
     if not isinstance(formats, list) or not formats:
         raise SmokeFailure("yt-dlp metadata contains no downloadable formats")
     return info
-
-
-def require_chat_batch(is_replay: object, items: object) -> int:
-    if is_replay is not True:
-        raise SmokeFailure("pytchat did not identify the target as an archived chat replay")
-    if not isinstance(items, Sequence) or isinstance(items, (str, bytes)) or not items:
-        raise SmokeFailure("pytchat returned an empty first replay batch")
-    return len(items)
 
 
 def require_ffprobe(payload: object) -> dict[str, object]:
@@ -95,28 +85,6 @@ def smoke_ytdlp(url: str, attempts: int) -> dict[str, object]:
         "target": url,
         "video_id": info["id"],
         "format_count": len(info["formats"]),  # type: ignore[arg-type]
-    }
-
-
-def smoke_pytchat(video_id: str, attempts: int) -> dict[str, object]:
-    import pytchat
-
-    def fetch() -> dict[str, object]:
-        chat: Any = None
-        try:
-            chat = pytchat.create(video_id=video_id, force_replay=True)
-            items = list(chat.get().sync_items())
-            count = require_chat_batch(chat.is_replay(), items)
-            return {"message_count": count}
-        finally:
-            if chat is not None:
-                chat.terminate()
-
-    result = retry(fetch, attempts, 3)
-    return {
-        "stage": "pytchat replay",
-        "target": video_id,
-        "message_count": result["message_count"],
     }
 
 
@@ -176,9 +144,8 @@ def write_report(stage: str, report: dict[str, object], output_dir: Path) -> Non
 
 def parse_args(argv: Sequence[str]) -> argparse.Namespace:
     parser = argparse.ArgumentParser()
-    parser.add_argument("stage", choices=("yt-dlp", "pytchat", "ffmpeg"))
+    parser.add_argument("stage", choices=("yt-dlp", "ffmpeg"))
     parser.add_argument("--yt-dlp-url", default=DEFAULT_YTDLP_URL)
-    parser.add_argument("--pytchat-video-id", default=DEFAULT_PYTCHAT_VIDEO_ID)
     parser.add_argument("--attempts", type=int, default=2)
     parser.add_argument("--output-dir", type=Path, default=Path("smoke-results"))
     args = parser.parse_args(argv)
@@ -192,8 +159,6 @@ def main(argv: Sequence[str] | None = None) -> int:
     try:
         if args.stage == "yt-dlp":
             report = smoke_ytdlp(args.yt_dlp_url, args.attempts)
-        elif args.stage == "pytchat":
-            report = smoke_pytchat(args.pytchat_video_id, args.attempts)
         else:
             report = smoke_ffmpeg()
         report["status"] = "passed"

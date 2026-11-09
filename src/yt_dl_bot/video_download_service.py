@@ -25,12 +25,8 @@ DOWNLOAD_ADAPTER_ERRORS = (
 class DownloadAdapter(Protocol):
     def check_availability(self, url: str) -> str: ...
 
-    def download_video(self, url: str) -> DownloadOutcome: ...
-
-    def download_video_cancellable(
-        self,
-        url: str,
-        cancellation_token: Cancellation,
+    def download_video(
+        self, url: str, cancellation_token: Cancellation | None = None
     ) -> DownloadOutcome: ...
 
 
@@ -57,13 +53,7 @@ class VideoDownloadService:
         cancellation_token: Cancellation | None = None,
     ) -> DownloadResult:
         try:
-            if cancellation_token is None:
-                outcome = self.downloader.download_video(url=url)
-            else:
-                outcome = self.downloader.download_video_cancellable(
-                    url=url,
-                    cancellation_token=cancellation_token,
-                )
+            outcome = self.downloader.download_video(url=url, cancellation_token=cancellation_token)
         except DOWNLOAD_ADAPTER_ERRORS as error:
             raise VideoDownloadError(
                 f"Unable to download video: {error_detail(error)}",

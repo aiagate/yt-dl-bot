@@ -4,7 +4,6 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from .download_engine import DownloadOutcome
-from .highlight import Highlight
 
 
 @dataclass(frozen=True)
@@ -30,12 +29,3 @@ class DownloadResult:
             metadata_files=outcome.artifacts.metadata,
             thumbnail_files=outcome.artifacts.thumbnails,
         )
-
-
-@dataclass(frozen=True)
-class HighlightResult:
-    title: str
-    channel_name: str
-    thumbnail_url: str
-    graph_image: Path
-    highlights: tuple[Highlight, ...]

@@ -23,7 +23,7 @@ class LoggingConfigurationTest(unittest.TestCase):
             for handler in tuple(logger.handlers):
                 if (
                     isinstance(handler, logging.FileHandler)
-                    and Path(handler.baseFilename).parent == self.log_path
+                    and Path(handler.baseFilename).parent == self.log_path.resolve()
                 ):
                     logger.removeHandler(handler)
                     if id(handler) not in seen:
@@ -59,7 +59,7 @@ class LoggingConfigurationTest(unittest.TestCase):
                 for handler in logger.handlers
                 if (
                     isinstance(handler, logging.FileHandler)
-                    and Path(handler.baseFilename).parent == self.log_path
+                    and Path(handler.baseFilename).parent == self.log_path.resolve()
                 )
             ]
             self.assertEqual(len(matching), 1)

@@ -11,7 +11,6 @@ class MessageRouterTest(unittest.TestCase):
         self.router = MessageRouter(
             command_prefix="!",
             download_channel=10,
-            highlight_channel=20,
         )
 
     def route(self, content, channel=10, author_is_bot=False):
@@ -46,7 +45,7 @@ class MessageRouterTest(unittest.TestCase):
         )
         self.assertEqual(
             self.route(url, channel=20),
-            MessageRoute(MessageAction.YOUTUBE_HIGHLIGHT, url),
+            MessageRoute(MessageAction.IGNORE),
         )
 
     def test_routes_twitch_only_to_download_channel(self):
@@ -85,7 +84,6 @@ class MessageRouterTest(unittest.TestCase):
         router = MessageRouter(
             command_prefix=("!", "?"),
             download_channel=10,
-            highlight_channel=20,
         )
 
         self.assertEqual(
@@ -104,33 +102,35 @@ class MainCogRoutingTest(unittest.IsolatedAsyncioTestCase):
         bot.command_prefix = "!"
         bot.settings = SimpleNamespace(
             DOWNLOAD_CHANNEL=10,
-            HIGHLIGHT_CHANNEL=20,
         )
         bot.logger = Mock()
         bot.get_context = AsyncMock()
         bot.process_commands = AsyncMock()
         return bot
 
-    async def test_automatic_route_invokes_without_mutating_message(self):
+    async def test_automatic_route_downloads_and_notifies_without_mutating_message(self):
         bot = self.make_bot()
-        command = Mock(name="youtube download")
-        bot.get_command.return_value = command
-        ctx = Mock()
-        ctx.invoke = AsyncMock()
+        bot.services = SimpleNamespace(youtube_download=Mock(), twitch_download=Mock())
+        bot.services.youtube_download.check.return_value = "ready"
+        bot.services.youtube_download.download.return_value = SimpleNamespace(
+            title="Video", source_url="https://youtu.be/video"
+        )
+        channel = SimpleNamespace(send=AsyncMock())
+        bot.settings.VIDEO_OUTPUT_CHANNEL = 30
+        bot.get_channel.return_value = channel
+        ctx = Mock(reply=AsyncMock())
         bot.get_context.return_value = ctx
         message = SimpleNamespace(
             author=SimpleNamespace(bot=False),
             channel=SimpleNamespace(id=10),
-            content="https://youtu.be/dQw4w9WgXcQ?note=hello!world",
+            content="https://youtu.be/video",
         )
-        original_content = message.content
-        cog = MainCog(bot)
-
-        await cog.on_message(message)
-
-        self.assertEqual(message.content, original_content)
-        bot.get_command.assert_called_once_with("youtube download")
-        ctx.invoke.assert_awaited_once_with(command, original_content)
+        await MainCog(bot).on_message(message)
+        self.assertEqual(message.content, "https://youtu.be/video")
+        ctx.reply.assert_awaited_once_with("ready")
+        channel.send.assert_awaited_once_with(
+            "**Download Success : **Video\nhttps://youtu.be/video"
+        )
         bot.process_commands.assert_not_awaited()
 
     async def test_normal_command_is_left_to_bot_default_handler(self):

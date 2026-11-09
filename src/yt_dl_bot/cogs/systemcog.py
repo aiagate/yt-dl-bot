@@ -4,11 +4,8 @@ from collections.abc import Iterable, Sequence
 from typing import TYPE_CHECKING, cast
 
 # ---third party library---
-from discord import Embed, File, TextChannel
+from discord import TextChannel
 from discord.ext import commands
-
-from ..application_results import DownloadResult
-from ..discord_notification_delivery import DiscordNotificationDelivery
 
 if TYPE_CHECKING:
     from ..discord_bot_main import DownloadBot
@@ -32,7 +29,6 @@ class SystemCog(commands.Cog):
     def __init__(self, bot: "DownloadBot") -> None:
         self.bot = bot
         self.settings = bot.settings
-        self.notifications = DiscordNotificationDelivery(bot)
 
     @commands.group(name="system")
     async def botsystem(self, ctx: commands.Context["DownloadBot"]) -> None:
@@ -145,42 +141,6 @@ class SystemCog(commands.Cog):
         error: commands.CommandError,
     ) -> None:
         await ctx.send("Error: " + str(error))
-
-    @commands.command(enabled=False)
-    async def send_log(
-        self,
-        ctx: commands.Context["DownloadBot"],
-        *args: str,
-        **kwargs: object,
-    ) -> None:
-        await self.notifications.send_log(*args)
-
-    @commands.command(enabled=False)
-    async def send_error_log(
-        self,
-        ctx: commands.Context["DownloadBot"],
-        error: BaseException,
-        *args: object,
-        **kwargs: object,
-    ) -> None:
-        await self.notifications.report_error(ctx, error)
-
-    @commands.command(enabled=False)
-    async def send_video_output_log(
-        self,
-        ctx: commands.Context["DownloadBot"],
-        result: DownloadResult,
-    ) -> None:
-        await self.notifications.send_download_result(result)
-
-    @commands.command(enabled=False)
-    async def send_highlight_output_log(
-        self,
-        ctx: commands.Context["DownloadBot"],
-        file: File,
-        embed: Embed,
-    ) -> None:
-        await self.notifications.send_highlight(file, embed)
 
 
 async def setup(bot: "DownloadBot") -> None:

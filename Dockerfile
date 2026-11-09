@@ -12,4 +12,4 @@ COPY pyproject.toml uv.lock README.md ./
 COPY ./src/ ./src/
 RUN uv sync --locked --no-dev --no-cache
 
-CMD ["/app/.venv/bin/python", "-m", "yt_dl_bot.discord_bot_main"]
+CMD ["/app/.venv/bin/yt-dl-bot"]

@@ -290,7 +290,6 @@ class DownloaderStructureTest(unittest.TestCase):
 
         self.assertTrue(youtube.engine.policy.live_from_start)
         self.assertTrue(generic.engine.policy.use_cookie_file)
-        self.assertTrue(callable(youtube.get_video_id))
 
     def test_shared_download_implementation_is_not_duplicated_in_adapters(self):
         adapter_paths = (

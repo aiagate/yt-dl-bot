@@ -2,7 +2,7 @@
 
 from typing import TYPE_CHECKING, cast
 
-from discord import Embed, File, TextChannel
+from discord import Embed, TextChannel
 from discord.ext import commands
 
 from .application_results import DownloadResult
@@ -25,9 +25,6 @@ class DiscordNotificationDelivery:
 
     def _channel(self, channel_id: int) -> TextChannel:
         return cast(TextChannel, self.bot.get_channel(channel_id))
-
-    async def send_log(self, *lines: str) -> None:
-        await self._channel(self.settings.LOG_CHANNEL).send("``" + "\n".join(lines) + "``")
 
     async def report_error(
         self,
@@ -59,10 +56,4 @@ class DiscordNotificationDelivery:
     async def send_download_result(self, result: DownloadResult) -> None:
         await self._channel(self.settings.VIDEO_OUTPUT_CHANNEL).send(
             "**Download Success : **" + result.title + "\n" + result.source_url,
-        )
-
-    async def send_highlight(self, file: File, embed: Embed) -> None:
-        await self._channel(self.settings.HIGHLIGHT_OUTPUT_CHANNEL).send(
-            file=file,
-            embed=embed,
         )

@@ -1,12 +1,13 @@
+import asyncio
 from typing import TYPE_CHECKING, cast
 
 import discord
-
-# ---third party library---
 from discord.ext import commands
 
-# ---local library---
+from ..cancellation import to_thread_cancellable
+from ..discord_notification_delivery import DiscordNotificationDelivery
 from ..message_router import MessageAction, MessageRouter
+from ..video_download_service import TwitchStreamOffline
 
 if TYPE_CHECKING:
     from ..discord_bot_main import DownloadBot
@@ -16,12 +17,11 @@ class MainCog(commands.Cog):
     def __init__(self, bot: "DownloadBot") -> None:
         self.bot = bot
         self.settings = bot.settings
-        command_prefix = cast(str | tuple[str, ...], bot.command_prefix)
         self.router = MessageRouter(
-            command_prefix=command_prefix,
+            command_prefix=cast(str | tuple[str, ...], bot.command_prefix),
             download_channel=self.settings.DOWNLOAD_CHANNEL,
-            highlight_channel=self.settings.HIGHLIGHT_CHANNEL,
         )
+        self.notifications = DiscordNotificationDelivery(bot)
 
     @commands.Cog.listener(name="on_message")
     async def on_message(self, message: discord.Message) -> None:
@@ -30,37 +30,29 @@ class MainCog(commands.Cog):
             content=message.content,
             channel_id=message.channel.id,
         )
-        if route.action in {MessageAction.IGNORE, MessageAction.COMMAND}:
-            # Bot.on_message owns normal command processing. Calling
-            # process_commands from this additional listener would run it twice.
+        if route.action in {MessageAction.IGNORE, MessageAction.COMMAND} or route.url is None:
             return
 
-        command_name = route.action.command_name
-        if command_name is None:
-            return
-        command = self.bot.get_command(command_name)
-        if command is None:
-            self.bot.logger.error(
-                "Automatic route command is not loaded: %s",
-                command_name,
-            )
-            return
-        cog_command = cast(commands.Command[commands.Cog, ..., object], command)
-
-        self.bot.logger.info(
-            "Automatic route: %s",
-            command_name,
+        is_youtube = route.action is MessageAction.YOUTUBE_DOWNLOAD
+        service = (
+            self.bot.services.youtube_download if is_youtube else self.bot.services.twitch_download
         )
         ctx = await self.bot.get_context(message)
-        ctx.command = cog_command
-        # Context.invoke calls the callback directly, bypassing the normal
-        # command error dispatch. Preserve that dispatch for automatic routes.
         try:
-            await ctx.invoke(cog_command, route.url)
-        except commands.CommandError as error:
-            await cog_command.dispatch_error(ctx, error)
+            try:
+                result = await asyncio.to_thread(service.check, route.url)
+            except TwitchStreamOffline:
+                await ctx.reply("このチャンネルでライブは始まっていません。")
+                return
+            if is_youtube:
+                for line in result.split("\n"):
+                    self.bot.logger.info(line)
+            await ctx.reply(result)
+            downloaded = await to_thread_cancellable(service.download, route.url)
+            self.bot.logger.info("Download Success!")
+            await self.notifications.send_download_result(downloaded)
         except Exception as error:
-            await cog_command.dispatch_error(ctx, commands.CommandInvokeError(error))
+            await self.notifications.report_error(ctx, error)
 
 
 async def setup(bot: "DownloadBot") -> None:

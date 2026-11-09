@@ -13,11 +13,3 @@ class VideoCheckError(ApplicationServiceError):
 
 class VideoDownloadError(ApplicationServiceError):
     """A video download failed."""
-
-
-class HighlightCreationError(ApplicationServiceError):
-    """Highlight metadata or chat processing failed."""
-
-
-class ArtifactStorageError(ApplicationServiceError):
-    """Moving an application artifact failed."""

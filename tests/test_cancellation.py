@@ -113,7 +113,7 @@ class CancellationTokenTest(unittest.TestCase):
     def test_application_service_does_not_translate_cancellation(self):
         downloader = Mock()
         cancellation = DownloadCancelled("cancelled")
-        downloader.download_video_cancellable.side_effect = cancellation
+        downloader.download_video.side_effect = cancellation
 
         with self.assertRaises(DownloadCancelled) as raised:
             VideoDownloadService(downloader).download(

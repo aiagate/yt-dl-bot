@@ -15,17 +15,17 @@ class MessageRoutingContractTest(unittest.TestCase):
             RoutingDecision(action="youtube download", url=url),
         )
 
-    def test_routes_a_youtube_url_to_the_highlight_channel(self) -> None:
-        # Contract: supported YouTube URLs create highlights in that channel.
+    def test_ignores_a_youtube_url_outside_the_download_channel(self) -> None:
+        # Contract: supported URLs outside the download channel are ignored.
         url = "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
 
         self.assertEqual(
             route_message(author_is_bot=False, content=url, channel_id=20),
-            RoutingDecision(action="youtube highlight", url=url),
+            RoutingDecision(action="ignore", url=None),
         )
 
-    def test_ignores_a_twitch_url_in_the_highlight_channel(self) -> None:
-        # Contract: Twitch URLs are not routed by the highlight channel.
+    def test_ignores_a_twitch_url_outside_the_download_channel(self) -> None:
+        # Contract: supported URLs outside the download channel are ignored.
         self.assertEqual(
             route_message(
                 author_is_bot=False,
