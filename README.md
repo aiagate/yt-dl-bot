@@ -1,9 +1,7 @@
 # yt-dl-bot
 
-YouTube と Twitch の動画をダウンロードし、YouTube のライブチャットから
-ハイライトを作成する Discord bot です。Discord の通常コマンドに加えて、
-指定したチャンネルへ URL だけを投稿したときの自動ルーティングにも対応します。
-データベースは使用せず、動画・メタデータ・サムネイル・グラフをファイルとして保存します。
+YouTube と Twitch の動画を、指定した Discord チャンネルへの URL 投稿からダウンロードする bot です。
+データベースは使用せず、動画・メタデータ・サムネイルをファイルとして保存します。
 
 ## 前提
 
@@ -29,12 +27,10 @@ cp .env.example .env
 ```
 
 `.env` は Git の管理対象外です。`DISCORD_KEY`（bot トークン）を含むため、
-コミットしないでください。インストール済みパッケージは次のいずれかで起動できます。
+コミットしないでください。インストール済みパッケージは次のコマンドで起動できます。
 
 ```sh
 uv run yt-dl-bot
-# 同じエントリポイントをモジュールとして起動する場合
-uv run python -m yt_dl_bot.discord_bot_main
 ```
 
 相対パスの設定は、Python アプリケーションを起動したときのカレントディレクトリを
@@ -53,12 +49,9 @@ uv run python -m yt_dl_bot.discord_bot_main
 | `DISCORD_KEY` | はい | Discord bot トークン |
 | `LOG_CHANNEL` | はい | エラー traceback と管理通知を送るチャンネル |
 | `VIDEO_OUTPUT_CHANNEL` | はい | ダウンロード成功通知を送るチャンネル |
-| `HIGHLIGHT_OUTPUT_CHANNEL` | はい | ハイライトの embed とグラフを送るチャンネル |
 | `DOWNLOAD_CHANNEL` | はい | URL 自動ルーティングで動画をダウンロードするチャンネル |
-| `HIGHLIGHT_CHANNEL` | はい | URL 自動ルーティングで YouTube ハイライトを作るチャンネル |
 | `SAVE_PATH` | いいえ | 動画・メタデータ・サムネイルの保存先（`downloads`） |
-| `GRAPH_SAVE_PATH` | いいえ | 投稿後のグラフの保存先（`downloads/graph`） |
-| `TMP_PATH` | いいえ | yt-dlp とグラフの一時ファイル置き場（`downloads/cache`） |
+| `TMP_PATH` | いいえ | yt-dlp の一時ファイル置き場（`downloads/cache`） |
 | `LOG_PATH` | いいえ | ログディレクトリ（`logs`） |
 
 `INITIAL_EXTENSIONS` を指定すると、起動時に読み込む Cog の一覧も変更できます。
@@ -93,12 +86,11 @@ Compose ではホストの `${COOKIE_PATH}/cookies.txt` が `/app/cookie/cookies
 
 ## アーキテクチャ
 
-Discord の受信処理、ダウンロード、チャット解析、Discord への表示を分離しています。
+Discord の受信処理、ダウンロード、Discord への通知を分離しています。
 
 ```text
 Discord message
   -> MainCog / MessageRouter
-  -> YouTubeCog または TwitchCog
   -> application service
   -> YouTubeDownloader または YtDlpDownloader
   -> 共通の DownloadEngine
@@ -106,65 +98,34 @@ Discord message
 ```
 
 `ApplicationServices.from_settings()` が Cog から利用するユースケースを組み立てます。
-アプリケーションサービスは yt-dlp、チャット、ファイルシステムの失敗をアプリケーション
+アプリケーションサービスは yt-dlp とファイルシステムの失敗をアプリケーション
 エラーへ変換します。`DownloadEngine` は共通の yt-dlp 処理をオーケストレーションし、
 `DownloadPolicy` がサイトごとの差分を定義します。`ArtifactStore` は保存先の計画、
 既存ファイルとの衝突検査、移動、失敗時のロールバックを担当します。
 
-YouTube のハイライトは、次の独立した経路で処理されます。
-
-```text
-YouTubeHighlightService
-  -> ChatHighlightPipeline
-  -> PytchatSource / HighlightAnalyzer / MatplotlibGraphRenderer
-```
-
 主要な実装箇所は次のとおりです。
 
-- `cogs/`: Discord コマンド、返信、embed、自動 URL ルーティング
+- `cogs/`: 管理コマンドと自動 URL ルーティング
 - `application_container.py`: アダプターとサービスを接続する composition root
 - `application_results.py`: Discord に依存しないユースケースの結果型
-- `cogs/highlight_presenter.py`: ハイライト結果を Discord の embed とフィールド制限へ整形
 - `video_download_service.py`: 動画の事前確認とダウンロードのユースケース
-- `youtube_highlight_service.py`: YouTube ハイライト作成とグラフの保存
 - `download_engine.py`: yt-dlp オプション、再試行、ダウンロードのオーケストレーション
 - `artifact_store.py`: 成果物の保存先、衝突検査、移動、ロールバック
-- `chat_highlights.py`: リプレイチャットの収集、ピーク検出、グラフ描画
 - `setting.py`: 環境変数からの設定と、起動時に読み込む Cog の初期一覧
 
 ## コマンドと自動ルーティング
 
-コマンドプレフィックスは `!` です。ユーザーが実行できるメディアコマンドは次の
-3 つです。
+動画を取得するには、`DOWNLOAD_CHANNEL` に対応する HTTP(S) URL **だけ**を投稿します。
+YouTube と Twitch に対応します。URL の前後の空白は許可しますが、説明文を含む投稿、
+対象外のチャンネル、bot の投稿は無視します。動画取得用の `!youtube download` と
+`!twitch download` は利用できません。
 
-```text
-!youtube download <url>
-!youtube highlight <url>
-!twitch download <url>
-```
+対応ホストは YouTube の `youtube.com`、`www.youtube.com`、`m.youtube.com`、
+`music.youtube.com`、`youtu.be` と、Twitch の `twitch.tv`、`www.twitch.tv`、
+`m.twitch.tv`、`clips.twitch.tv` です。認証情報付き URL とポート付き URL は受け付けません。
+処理に失敗した場合は投稿元へ返信し、ログチャンネルへマスク済みの詳細を送ります。
 
-URL 引数は対象サービスの HTTP(S) URL として検証されます。URL の前後の空白は除去
-されますが、対応していないホスト、認証情報付き URL、ポート付き URL は受け付けません。
-対応ホストは次のとおりです。
-
-- YouTube: `youtube.com`、`www.youtube.com`、`m.youtube.com`、`music.youtube.com`、
-  `youtu.be`
-- Twitch: `twitch.tv`、`www.twitch.tv`、`m.twitch.tv`、`clips.twitch.tv`
-
-メッセージ本文が対応する HTTP(S) URL **だけ** の場合は、チャンネル設定に応じて
-自動的にコマンドとして処理します。
-
-| チャンネル設定 | YouTube URL | Twitch URL |
-| --- | --- | --- |
-| `DOWNLOAD_CHANNEL` | `youtube download` | `twitch download` |
-| `HIGHLIGHT_CHANNEL` | `youtube highlight` | 無視 |
-
-URL の前後の空白は許可されますが、URL の周囲に説明文などがあるメッセージは対象外です。
-bot が投稿したメッセージ、対応していないホスト、対象外のチャンネル、通常の `!` コマンド
-も自動ルーティングしません。
-
-自動ルーティングで動画の取得やハイライト作成に失敗した場合も、投稿元へエラーを返信し、
-ログチャンネルへマスク済みの詳細を送ります。
+コマンドプレフィックスは `!` です。
 
 所有者限定の管理コマンドは次のとおりです。
 
@@ -190,8 +151,6 @@ unload する場合は、意図しない停止を防ぐため `-f` も必要で�
   `live_from_start` は行いません。オフラインの配信は専用のメッセージで通知します。
   `cookie/cookies.txt` が存在すると Cookie ファイルを指定し、メタデータとサムネイルは
   任意の成果物として扱います。
-- **ハイライト**: YouTube のみ対応します。リプレイチャットを読み込み、30 秒単位で
-  コメント数を集計して活動ピークを検出し、リンクとグラフを投稿した後にグラフを保存します。
 
 ## 成果物の配置
 
@@ -204,17 +163,14 @@ downloads/
 │   └── <timestamp>_<video-id>.<metadata-extension>
 ├── thumbnail/
 │   └── <timestamp>_<video-id>.<image-extension>
-├── graph/
-│   └── scoregraph_<timestamp>_<video-id>.png
-└── cache/                 # ダウンロード要求ごとの専用ディレクトリと一時グラフ
+└── cache/                 # ダウンロード要求ごとの専用ディレクトリ
 logs/
 └── discord_bot_main.log
 ```
 
 動画は `SAVE_PATH` 直下、メタデータとサムネイルはその `metadata/` と `thumbnail/`
 に保存されます。yt-dlp の出力形式により、メタデータやサムネイルが複数になる場合が
-あります。ハイライトのグラフは `TMP_PATH` で生成して Discord へ投稿し、成功後に
-`GRAPH_SAVE_PATH` へ移動します。既定ではいずれも `downloads/` 配下です。
+あります。
 
 動画ダウンロードは要求ごとに `TMP_PATH` 内の専用ディレクトリを使います。同じ動画を
 同時に要求しても一時ファイルを共有しません。同一 bot プロセス内では、保存先の衝突検査・
@@ -236,7 +192,7 @@ Cog を追加する場合は、`src/yt_dl_bot/cogs/` 以下に async な `setup(
 新しいダウンロード元を追加する場合は、まず `url_validation.py` に厳密な URL 識別と検証を
 追加します。yt-dlp の処理が適用できるなら `DownloadEngine` と適切な `DownloadPolicy` を
 再利用し、安定した結果型とアプリケーションエラーを公開するサービスでラップします。
-そのサービスを `ApplicationServices` に追加し、Discord 固有の表示は専用 Cog に置きます。
+そのサービスを `ApplicationServices` に追加し、Discord のルーティングに接続します。
 ネットワーク、時計、待機、ファイルシステムに依存する処理はコラボレーターを明示的に
 受け取る設計にすると、テストで置き換えられます。
 
@@ -251,7 +207,7 @@ docker compose up -d
 
 Compose は次のマウントを行います。
 
-- `DOWNLOADS_PATH` -> `/app/downloads`（動画、メタデータ、サムネイル、グラフ）
+- `DOWNLOADS_PATH` -> `/app/downloads`（動画、メタデータ、サムネイル）
 - `COOKIE_PATH` -> `/app/cookie`（読み取り専用）
 - `./logs` -> `/app/logs`（アプリケーションログ）
 
@@ -300,10 +256,9 @@ uv run ruff format src tests scripts
 ### 外部統合 smoke test
 
 必須ではない **External integration smoke** workflow は、毎週月曜日 04:17 UTC に実行され、
-Actions タブの **Run workflow** からも手動起動できます。次の 3 つの境界を個別に検査します。
+Actions タブの **Run workflow** からも手動起動できます。次の 2 つの境界を個別に検査します。
 
 - メディアをダウンロードしない yt-dlp のメタデータ抽出
-- アーカイブ済み YouTube チャットリプレイの pytchat 初回バッチ取得
 - 1 秒の合成音源を使ったローカル `ffmpeg`/`ffprobe` 実行とメタデータ後処理
 
 ffmpeg ジョブは実行前に `ffmpeg` と `ffprobe` をインストールします。通常のユニットテスト
@@ -315,7 +270,7 @@ summary に出力され、JSON artifact として 14 日間保持されます。
 統合側の変更かどうかを判断してください。
 
 既定の対象は公開テスト動画で、認証情報は使用しません。スケジュール実行ではリポジトリ
-変数 `YTDLP_SMOKE_URL` と `PYTCHAT_SMOKE_VIDEO_ID` で対象を上書きできます。手動実行の
+変数 `YTDLP_SMOKE_URL` で対象を上書きできます。手動実行の
 入力がある場合はリポジトリ変数より優先されます。上書き対象も公開アクセス可能である必要が
 あり、この workflow が完全なメディアをダウンロードすることはありません。
 
@@ -325,14 +280,8 @@ ffmpeg の決定的な probe はローカルでも実行できます。
 uv run python scripts/external_smoke.py ffmpeg
 ```
 
-検証ヘルパーは通常のオフラインユニットテストでカバーされています。yt-dlp と pytchat
+検証ヘルパーは通常のオフラインユニットテストでカバーされています。yt-dlp
 の probe は外部メディアサービスへの依存を避けるため、週次・手動 workflow でのみ実行します。
-
-現在の pytchat 0.5.5 では、以前の既定リプレイが無効になったため、既定値を有効な公開
-アーカイブへ置き換えています。ただし、そのアーカイブは pytchat にリプレイとして認識
-される一方、リプレイ要求の初回バッチが空になることがあります。他の公開アーカイブでも
-タイムアウトなど同様の挙動が確認されているため、pytchat ジョブは調査が完了するまで
-空バッチを成功扱いせず、失敗したままにします。
 
 `mypy` は全関数の完全な型注釈、完全なジェネリック型引数とデコレーター、明示的な Optional
 型、安全な戻り値、厳密な等価性検査、到達不能コード、未使用設定の検査を要求します。型情報を

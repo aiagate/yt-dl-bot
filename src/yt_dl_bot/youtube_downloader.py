@@ -8,7 +8,6 @@ from .download_engine import (
 )
 from .download_primitives import DownloadDependencies, RetryPolicy
 from .setting import Settings
-from .url_validation import extract_youtube_video_id
 
 
 class YouTubeDownloader(EngineDownloadAdapter):
@@ -27,6 +26,3 @@ class YouTubeDownloader(EngineDownloadAdapter):
             dependencies,
             youtube_download_policy(self.retry_policy),
         )
-
-    def get_video_id(self, url: str) -> str:
-        return extract_youtube_video_id(url)

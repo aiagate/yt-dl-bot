@@ -2,7 +2,6 @@ import unittest
 from pathlib import Path
 from types import SimpleNamespace
 
-from yt_dl_bot.chat_highlights import ChatHighlightPipeline
 from yt_dl_bot.discord_bot_main import DownloadBot
 from yt_dl_bot.setting import Settings
 from yt_dl_bot.youtube_downloader import YouTubeDownloader
@@ -15,9 +14,7 @@ def settings_for(name):
         DISCORD_KEY=f"{name}-token",
         LOG_CHANNEL=1,
         VIDEO_OUTPUT_CHANNEL=2,
-        HIGHLIGHT_OUTPUT_CHANNEL=3,
         DOWNLOAD_CHANNEL=4,
-        HIGHLIGHT_CHANNEL=5,
         SAVE_PATH=f"/{name}/archive/",
         TMP_PATH=f"/{name}/cache/",
     )
@@ -43,8 +40,6 @@ class ApplicationSettingsTest(unittest.IsolatedAsyncioTestCase):
 
         first_youtube = YouTubeDownloader(settings=first)
         second_ytdlp = YtDlpDownloader(settings=second)
-        first_chat = ChatHighlightPipeline("video", settings=first)
-        second_chat = ChatHighlightPipeline("video", settings=second)
 
         self.assertEqual(
             first_youtube.dependencies.tmp_path,
@@ -62,8 +57,6 @@ class ApplicationSettingsTest(unittest.IsolatedAsyncioTestCase):
             second_ytdlp.dependencies.save_path,
             Path("/second/archive"),
         )
-        self.assertEqual(first_chat.image_path.parent, Path("/first/cache"))
-        self.assertEqual(second_chat.image_path.parent, Path("/second/cache"))
 
 
 if __name__ == "__main__":

@@ -12,9 +12,7 @@ class SettingsTest(unittest.TestCase):
             "DISCORD_KEY": "discord-token",
             "LOG_CHANNEL": "1",
             "VIDEO_OUTPUT_CHANNEL": "2",
-            "HIGHLIGHT_OUTPUT_CHANNEL": "3",
             "DOWNLOAD_CHANNEL": "4",
-            "HIGHLIGHT_CHANNEL": "5",
         }
 
         with patch.dict(os.environ, environment, clear=True):

@@ -24,14 +24,12 @@ def route_message(
     content: object,
     channel_id: int,
     download_channel: int = 10,
-    highlight_channel: int = 20,
     command_prefix: str | tuple[str, ...] = "!",
 ) -> RoutingDecision:
     """Return the externally observable routing decision for one message."""
     route = MessageRouter(
         command_prefix=command_prefix,
         download_channel=download_channel,
-        highlight_channel=highlight_channel,
     ).route(
         author_is_bot=author_is_bot,
         content=content,

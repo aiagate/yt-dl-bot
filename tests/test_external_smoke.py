@@ -18,7 +18,6 @@ class ExternalSmokeValidationTest(unittest.TestCase):
             external_smoke.DEFAULT_YTDLP_URL,
             "https://www.w3schools.com/html/mov_bbb.mp4",
         )
-        self.assertEqual(external_smoke.DEFAULT_PYTCHAT_VIDEO_ID, "1xO3eP5HVhg")
 
     def test_metadata_requires_identity_title_and_formats(self):
         info = {"id": "video", "title": "title", "formats": [{"format_id": "one"}]}
@@ -30,14 +29,6 @@ class ExternalSmokeValidationTest(unittest.TestCase):
             external_smoke.require_metadata(
                 {"id": "other", "title": "title", "formats": [{}]}, "video"
             )
-
-    def test_chat_batch_requires_replay_messages(self):
-        self.assertEqual(external_smoke.require_chat_batch(True, [object()]), 1)
-
-        with self.assertRaisesRegex(external_smoke.SmokeFailure, "archived"):
-            external_smoke.require_chat_batch(False, [object()])
-        with self.assertRaisesRegex(external_smoke.SmokeFailure, "empty"):
-            external_smoke.require_chat_batch(True, [])
 
     def test_ffprobe_requires_stream_and_postprocessing_metadata(self):
         payload = {

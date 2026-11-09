@@ -2,14 +2,12 @@ import unittest
 from types import SimpleNamespace
 from unittest.mock import AsyncMock
 
-from yt_dl_bot.cogs import maincog, systemcog, twitchcog, youtubecog
+from yt_dl_bot.cogs import maincog, systemcog
 from yt_dl_bot.discord_bot_main import DownloadBot, build_gateway_intents
 
 INITIAL_EXTENSIONS = (
     "yt_dl_bot.cogs.maincog",
     "yt_dl_bot.cogs.systemcog",
-    "yt_dl_bot.cogs.youtubecog",
-    "yt_dl_bot.cogs.twitchcog",
 )
 
 
@@ -73,8 +71,6 @@ class CogSetupTest(unittest.IsolatedAsyncioTestCase):
         cases = (
             (maincog, maincog.MainCog),
             (systemcog, systemcog.SystemCog),
-            (twitchcog, twitchcog.TwitchCog),
-            (youtubecog, youtubecog.YouTubeCog),
         )
 
         for module, cog_type in cases:

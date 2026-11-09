@@ -55,6 +55,7 @@ class VideoDownloadServiceTest(unittest.TestCase):
         )
         downloader.download_video.assert_called_once_with(
             url="https://example.test",
+            cancellation_token=None,
         )
 
     def test_download_failure_is_propagated(self):
@@ -72,7 +73,7 @@ class VideoDownloadServiceTest(unittest.TestCase):
 
     def test_cancellable_download_uses_explicit_adapter_boundary(self):
         downloader = Mock()
-        downloader.download_video_cancellable.return_value = DownloadOutcome(
+        downloader.download_video.return_value = DownloadOutcome(
             video_id="video",
             title="Example video",
             source_url="https://example.test",
@@ -91,8 +92,7 @@ class VideoDownloadServiceTest(unittest.TestCase):
 
         self.assertEqual(result.video_id, "video")
         self.assertEqual(result.title, "Example video")
-        downloader.download_video.assert_not_called()
-        downloader.download_video_cancellable.assert_called_once_with(
+        downloader.download_video.assert_called_once_with(
             url="https://example.test",
             cancellation_token=token,
         )
@@ -100,7 +100,8 @@ class VideoDownloadServiceTest(unittest.TestCase):
     def test_typed_error_preserves_original_traceback(self):
         downloader = Mock()
 
-        def fail_download(*, url):
+        def fail_download(*, url, cancellation_token):
+            self.assertIsNone(cancellation_token)
             raise OSError(f"adapter failure for {url}")
 
         downloader.download_video.side_effect = fail_download

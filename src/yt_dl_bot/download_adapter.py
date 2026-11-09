@@ -1,7 +1,7 @@
 """Common adapter API for site-specific :class:`DownloadEngine` policies."""
 
 from .download_engine import Cancellation, DownloadEngine, DownloadOutcome, DownloadPolicy
-from .download_service import DownloadDependencies
+from .download_primitives import DownloadDependencies
 
 
 class EngineDownloadAdapter:
@@ -14,13 +14,10 @@ class EngineDownloadAdapter:
     def check_availability(self, url: str) -> str:
         return self.engine.check_availability(url, info_loader=self.get_info)
 
-    def download_video(self, url: str) -> DownloadOutcome:
-        return self.engine.download_video(url, info_loader=self.get_info)
-
-    def download_video_cancellable(
+    def download_video(
         self,
         url: str,
-        cancellation_token: Cancellation,
+        cancellation_token: Cancellation | None = None,
     ) -> DownloadOutcome:
         return self.engine.download_video(
             url,

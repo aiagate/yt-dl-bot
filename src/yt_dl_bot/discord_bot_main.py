@@ -127,7 +127,3 @@ def main(settings: Settings | None = None) -> None:
         services=services,
     )
     bot.run(settings.DISCORD_KEY.get_secret_value())
-
-
-if __name__ == "__main__":
-    main()
