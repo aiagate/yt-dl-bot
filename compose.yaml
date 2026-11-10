@@ -6,6 +6,10 @@ services:
       LOG_CHANNEL: ${LOG_CHANNEL:?Set LOG_CHANNEL in .env}
       VIDEO_OUTPUT_CHANNEL: ${VIDEO_OUTPUT_CHANNEL:?Set VIDEO_OUTPUT_CHANNEL in .env}
       DOWNLOAD_CHANNEL: ${DOWNLOAD_CHANNEL:?Set DOWNLOAD_CHANNEL in .env}
+      SAVE_PATH: ${SAVE_PATH-downloads}
+      TMP_PATH: ${TMP_PATH-downloads/cache}
+      LOG_PATH: ${LOG_PATH-logs}
+      INITIAL_EXTENSIONS: '${INITIAL_EXTENSIONS-["yt_dl_bot.cogs.maincog","yt_dl_bot.cogs.systemcog"]}'
     volumes:
       - ${DOWNLOADS_PATH:-./downloads}:/app/downloads
       - ${COOKIE_PATH:-./cookie}:/app/cookie:ro
